@@ -1,14 +1,14 @@
-import { Add, Check, ContentCopy, Save } from '@mui/icons-material';
-import { Box, Button, Card, CardActions, CardContent, CardHeader, CircularProgress, Fab, FormControl, FormControlLabel, FormLabel, Grid, IconButton, Radio, RadioGroup, TextField, Toolbar, Tooltip, Typography, useTheme } from '@mui/material';
+import { Add, Check, ContentCopy, Palette, Save } from '@mui/icons-material';
+import { Avatar, Box, Button, Card, CardActions, CardContent, CardHeader, CircularProgress, Fab, FormControl, FormControlLabel, FormLabel, Grid, IconButton, Radio, RadioGroup, TextField, Toolbar, Tooltip, Typography, useTheme } from '@mui/material';
 import AppBar from '@mui/material/AppBar/AppBar';
 import useLocalStorage from '@rehooks/local-storage';
+import copy from 'clipboard-copy';
 import _ from 'lodash';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { SketchPicker } from 'react-color';
 import Draggable from 'react-draggable';
 import { Pixel, Rgb } from './components/Pixel/Pixel';
 import { ThemeButton, useDarkMode } from './components/Pixel/Themes';
-import copy from 'clipboard-copy';
 
 type Matrix<T> = {
   [y: number]: {
@@ -287,10 +287,13 @@ function App() {
   return (
     <>
       <AppBar position="fixed">
-        <Toolbar sx={{
-          justifyContent: 'space-between',
-        }}>
+        <Toolbar>
+          <Avatar src="https://pi-color-picker.web.app/logo.png">
+            <Palette />
+          </Avatar>
+          <Box mr={1} />
           <Typography variant="h6">PI Color Picker</Typography>
+          <Box mr="auto" />
           <ThemeButton />
         </Toolbar>
       </AppBar>

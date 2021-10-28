@@ -1,4 +1,4 @@
-import { Brightness4, Brightness6 } from "@mui/icons-material";
+import { Brightness4, Brightness6, BrightnessLow } from "@mui/icons-material";
 import { IconButton } from "@mui/material";
 import { ThemeOptions, ThemeProvider, createTheme } from "@mui/material";
 import useLocalStorage from "@rehooks/local-storage";
@@ -31,8 +31,8 @@ export function useDarkMode(): [boolean, (theme: 'light' | 'dark') => void] {
 export function ThemeButton() {
     const [isDarkMode, setTheme] = useDarkMode()
     return (
-        <IconButton edge="end" onClick={() => setTheme(isDarkMode ? 'light' : 'dark')}>
-            {isDarkMode ? <Brightness6 /> : <Brightness4 />}
+        <IconButton edge="end" sx={{ color: 'white' }} onClick={() => setTheme(isDarkMode ? 'light' : 'dark')}>
+            {isDarkMode ? <Brightness6 /> : <BrightnessLow />}
         </IconButton>
     )
 }
