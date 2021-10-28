@@ -1,248 +1,14 @@
-import { Add, Check, ContentCopy, Palette, Save } from '@mui/icons-material';
-import { Avatar, Box, Button, Card, CardActions, CardContent, CardHeader, CircularProgress, Fab, FormControl, FormControlLabel, FormLabel, Grid, IconButton, Radio, RadioGroup, TextField, Toolbar, Tooltip, Typography, useTheme } from '@mui/material';
+import { Add, Help, Palette } from '@mui/icons-material';
+import { Avatar, Box, Fab, FormControl, FormControlLabel, FormLabel, Grid, IconButton, Radio, RadioGroup, Toolbar, Tooltip, Typography } from '@mui/material';
 import AppBar from '@mui/material/AppBar/AppBar';
 import useLocalStorage from '@rehooks/local-storage';
-import copy from 'clipboard-copy';
-import _ from 'lodash';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { SketchPicker } from 'react-color';
+import { Step, Steps } from 'intro.js-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Draggable from 'react-draggable';
-
-import { Pixel, Rgb } from './components/Pixel/Pixel';
+import { ColorPicker, CopyMode, DEFAULT_COLOR, GRAY, LIGHT_GRAY, MatrixCard, MatrixConfig } from './components/MatrixCard';
+import { Rgb } from './components/Pixel/Pixel';
 import { ThemeButton, useDarkMode } from './components/Pixel/Themes';
 
-type Matrix<T> = {
-  [y: number]: {
-    [x: number]: T
-  }
-}
-
-const BLACK: Rgb = [0, 0, 0]
-const LIGHT_GRAY: Rgb = [200, 200, 200]
-const GRAY: Rgb = [100, 100, 100]
-const DEFAULT_COLOR: Rgb = [80, 150, 180]
-
-type NumberInputProps = {
-  label: string
-  onChange: (value: number) => void
-  value: number
-}
-
-function NumberInput({ label, onChange, value }: NumberInputProps) {
-  const [state, setState] = useState(String(value))
-
-  useEffect(() => {
-    setState(String(value))
-  }, [value, setState])
-
-  const asNumber = Number(state || NaN)
-  const isValid = !isNaN(asNumber)
-
-  return (
-    <TextField
-      fullWidth
-      type="number"
-      label={label}
-      value={state}
-      onChange={(e) => {
-        setState(e.target.value)
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          if (isValid) {
-            onChange(asNumber)
-          }
-        }
-      }}
-      InputProps={{
-        endAdornment: (
-          <IconButton disabled={!isValid || (asNumber === value)} color="primary" onClick={() => onChange(asNumber)}>
-            <Save />
-          </IconButton>
-        )
-      }}
-    />
-  )
-}
-
-type MatrixConfig = {
-  id: string
-  name: string
-  height: number
-  width: number
-  matrix: Matrix<Rgb>
-}
-
-type MatrixCardProps = {
-  config: MatrixConfig
-  selectedColor: Rgb
-  onChange: (value: MatrixConfig) => void
-  onDelete: () => void
-  onCopy: () => void
-  emptyColor: Rgb
-  copyMode: CopyMode
-}
-
-function pythonFrom(config: MatrixConfig) {
-  const { name, height, width, matrix } = config
-
-  const content = (
-    Array.from(Array(height).keys()).map((r) => {
-      return Array.from(Array(width).keys()).map((c) => {
-        return `(${(matrix[r]?.[c] || BLACK).join(', ')})`
-      }).join(', ')
-    }).join(',\n    ')
-  )
-  return `
-${name.toUpperCase().replaceAll(' ', '_')} = [
-    ${content},
-]
-`.trim()
-}
-
-function MatrixCard({ config, onChange, onDelete, onCopy, selectedColor, emptyColor, copyMode }: MatrixCardProps) {
-  const [state, setState] = useState(config)
-  const { height, width, name, matrix } = state
-
-  const propagateChange = useMemo(() => _.debounce((newConfig: MatrixConfig) => {
-    onChange(newConfig)
-  }, 1000), [onChange])
-
-  const update = useCallback((changes: Partial<MatrixConfig>) => {
-    const newConfig = { ...state, ...changes }
-    setState(newConfig)
-    propagateChange(newConfig)
-  }, [state, setState, propagateChange])
-
-  useEffect(() => {
-    setState(config)
-  }, [config, setState])
-
-  return (
-    <Card elevation={2}>
-      <CardContent>
-        <Box mb={1}>
-          <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
-            <Tooltip placement="top" title="Copy to clipboard">
-              <IconButton color="primary" size="small" onClick={() => copy(copyMode === 'json' ? JSON.stringify(config, null, 2) : pythonFrom(config))}>
-                <ContentCopy />
-              </IconButton>
-            </Tooltip>
-            <Tooltip color="success" placement="top" title={state !== config ? 'Saving ...' : 'Saved'}>
-              <IconButton size="small">
-                {
-                  state !== config ? <CircularProgress color="success" size={24} /> : <Check />
-                }
-              </IconButton>
-            </Tooltip>
-          </div>
-        </Box>
-        <TextField fullWidth label="Name" type="text" value={name} onChange={(e) => update({ name: e.target.value ?? '' })} />
-        <Box mx={2} my={2} />
-        <NumberInput label="Height" value={height} onChange={value => update({ height: value })} />
-        <Box mx={2} my={2} />
-        <NumberInput label="Width" value={width} onChange={value => update({ width: value })} />
-        <Box mx="auto" mt={2} onDragStart={e => e.preventDefault()}>
-          {Array.from(Array(height).keys()).map((iRow) => {
-            return (
-              <div key={iRow} style={{ textAlign: 'center' }} onDragStart={e => e.preventDefault()}>
-                {Array.from(Array(width).keys()).map((iColumn) => {
-                  return (
-                    <Pixel
-                      key={iColumn}
-                      color={matrix[iRow]?.[iColumn] || emptyColor}
-                      onChange={(clear) => {
-                        const { [iRow]: { [iColumn]: current, ...row } = {}, ...rows } = matrix
-                        const newValue = clear ? {} : {
-                          [iColumn]: selectedColor,
-                        }
-                        const newRowValues = {
-                          ...row,
-                          ...newValue,
-                        }
-                        update({
-                          matrix: {
-                            ...rows,
-                            ...(Object.values(newRowValues).length ? {
-                              [iRow]: newRowValues,
-                            } : {})
-                          },
-                        })
-                      }}
-                    />
-                  )
-                })}
-              </div>
-            )
-          })}
-        </Box>
-      </CardContent>
-      <CardActions sx={{ justifyContent: 'right' }}>
-        <Button color="primary" onClick={onCopy}>Copy</Button>
-        <Button onClick={() => {
-          onChange({
-            ...config,
-            matrix: Array.from(Array(height).keys()).reduce((mat, r) => {
-              mat[r] = Array.from(Array(width).keys()).reduce((colAcc, c) => {
-                colAcc[c] = selectedColor
-                return colAcc
-              }, {} as { [x: string]: Rgb })
-              return mat
-            }, {} as Matrix<Rgb>)
-          })
-        }
-        }>Fill</Button>
-        <Button color="primary" onClick={() => onChange({ ...config, matrix: {} })}>Clear</Button>
-        <Button color="primary" onClick={onDelete}>Delete</Button>
-      </CardActions>
-    </Card>
-  )
-}
-
-type ColorPickerProps = {
-  onChange: (value: Rgb) => void
-  value: Rgb
-}
-
-function ColorPicker({ onChange, value }: ColorPickerProps) {
-  const theme = useTheme()
-  const [state, setState] = useState(value)
-
-  useEffect(() => {
-    setState(value)
-  }, [value, setState])
-
-  return (
-    <Card>
-      <CardHeader title="Select color" />
-      <CardContent>
-        <SketchPicker
-          styles={{
-            default: {
-              picker: {
-                background: theme.palette.background.paper,
-              }
-            }
-          }}
-          color={{ r: state[0], g: state[1], b: state[2] }}
-          onChangeComplete={(color) => {
-            onChange([
-              color.rgb.r,
-              color.rgb.g,
-              color.rgb.b,
-            ])
-          }}
-          onChange={(color) => {
-            setState([
-              color.rgb.r,
-              color.rgb.g,
-              color.rgb.b,
-            ])
-          }} />
-      </CardContent>
-    </Card>
-  )
-}
 
 function useStateHistory<T>(value: T) {
   const [historyIndex, setHistoryIndex] = useState<number>(0)
@@ -276,8 +42,30 @@ function useStateHistory<T>(value: T) {
   ]
 }
 
+function makeSteps(lastMatrixId: string): Step[] {
+  const lastId = lastMatrixId.replace('.', '\\.')
+  return [
+    { element: "#add-matrix-btn", intro: 'Create a new matrix' },
+    { element: "#matrix-card-name-" + lastId, intro: 'Set the name of your matrix. This will be used when generating code' },
+    { element: "#matrix-card-height-" + lastId, intro: 'Set the pixel height of your matrix' },
+    { element: "#matrix-card-height-" + lastId + '-save', intro: 'Click the save button when you have set a new height' },
+    { element: "#matrix-card-width-" + lastId, intro: 'Set the pixel width of your matrix' },
+    { element: "#matrix-card-width-" + lastId + '-save', intro: 'Click the save button when you have set a new width' },
+    { element: "#color-picker", intro: 'Pick a color you like' },
+    { element: "#matrix-card-" + lastId + ' .pixels', intro: 'Start drawing something! Click a pixel, or hold the left mouse button while draging to draw with your selected color. Hold shift to remove the color from a pixel' },
+    { element: "#matrix-card-" + lastId + ' .save-indicator', intro: 'Your work is saved 1sec after you stop changing things' },
+    { element: "#matrix-card-" + lastId + ' .copy', intro: 'Copy the matrix' },
+    { element: "#matrix-card-" + lastId + ' .clear', intro: 'Clear the matrix content' },
+    { element: "#matrix-card-" + lastId + ' .fill', intro: 'Fill the matrix with the selected color' },
+    { element: "#copy-mode-form", intro: 'Select the export format' },
+    { element: "#matrix-card-" + lastId + ' .copy-code', intro: 'Copy the code to your clipboard' },
+    { element: "#matrix-card-" + lastId + ' .copy-code', intro: 'Now paste the code into your editor and watch the magic ;)' },
+    { element: "#matrix-card-" + lastId + ' .copy', intro: 'Make another copy' },
+    { element: "#matrix-card-" + lastId + ' .delete', intro: 'Now delete this matrix' },
+    { intro: 'All set! Happy coding :)' },
+  ]
+}
 
-type CopyMode = 'python' | 'json'
 function App() {
   const [copyMode, setCopyMode] = useState<CopyMode>('json')
   const [darkMode] = useDarkMode()
@@ -285,8 +73,36 @@ function App() {
   const [stored, setMatrixes] = useLocalStorage<{ [id: string]: MatrixConfig }>('matrixes', {})
   const emptyColor = darkMode ? GRAY : LIGHT_GRAY
   const [matrixes] = useStateHistory(stored)
+  const [tutorial, setTutorial] = useLocalStorage('tutorial', { show: true, step: 0 })
+  const lastId = useMemo(() => {
+    const [, lastId] = Object.values(matrixes).reduce(([timestamp, id], mat) => mat.created > timestamp ? [mat.created, mat.id] : [timestamp, id], ['', ''])
+    return lastId
+
+  }, [matrixes])
+  const lastRef = useRef<any>()
+  const [scrollTo, setScrollTo] = useState('')
+
+  useEffect(() => {
+    if (scrollTo === lastId) {
+      lastRef.current?.scrollIntoView?.({ behavior: 'smooth' })
+    }
+  }, [scrollTo, lastId, lastRef])
+
   return (
     <>
+      <Steps
+        enabled={tutorial.show}
+        initialStep={tutorial.step || 0}
+        steps={useMemo(() => makeSteps(lastId), [lastId])}
+        onExit={(step) => setTutorial({ show: false, step })}
+        onComplete={() => setTutorial({ show: false, step: 0 })}
+        onChange={(step) => setTutorial({ ...tutorial, step })}
+        options={{
+          disableInteraction: false,
+          showProgress: true,
+          showStepNumbers: true,
+        }}
+      />
       <AppBar position="fixed">
         <Toolbar>
           <Avatar src="https://pi-color-picker.web.app/logo.png">
@@ -295,12 +111,15 @@ function App() {
           <Box mr={1} />
           <Typography variant="h6">PI Color Picker</Typography>
           <Box mr="auto" />
+          <IconButton style={{ color: 'white' }} onClick={() => setTutorial({ ...tutorial, show: true })}>
+            <Help />
+          </IconButton>
           <ThemeButton />
         </Toolbar>
       </AppBar>
       <Toolbar />
       <Toolbar sx={{ marginTop: 1 }}>
-        <FormControl component="fieldset">
+        <FormControl component="fieldset" id="copy-mode-form">
           <FormLabel component="span">Copy as</FormLabel>
           <RadioGroup
             row
@@ -314,22 +133,30 @@ function App() {
           </RadioGroup>
         </FormControl>
       </Toolbar>
-      <div style={{ zIndex: 5000, position: 'fixed', bottom: 20, right: 20 }}>
+      <div id="add-matrix-btn" style={{ zIndex: 5000, position: 'fixed', bottom: 20, right: 20 }}>
         <Tooltip title="Add Matrix" placement="top">
           <Fab
             color="primary"
             onClick={() => {
-              const id = Math.random()
+              const id = Math.random().toString()
               setMatrixes({
                 ...matrixes,
                 [id]: {
                   id,
                   name: '',
+                  created: new Date().toISOString(),
                   width: 8,
                   height: 8,
                   matrix: {}
                 }
               })
+              setScrollTo(id)
+              if (tutorial.show) {
+                setTutorial({ ...tutorial, show: false })
+                setTimeout(() => {
+                  setTutorial({ step: tutorial.step + 1, show: true })
+                }, 10)
+              }
             }}
           >
             <Add />
@@ -347,6 +174,7 @@ function App() {
             return (
               <Grid key={matrix.id} item>
                 <MatrixCard
+                  ref={lastRef}
                   copyMode={copyMode}
                   emptyColor={emptyColor}
                   config={matrix}
@@ -354,13 +182,30 @@ function App() {
                   onDelete={() => {
                     const { [matrix.id]: current, ...others } = matrixes
                     setMatrixes(others)
+                    if (tutorial.show) {
+                      setTutorial({ ...tutorial, show: false })
+                      setTimeout(() => {
+                        setTutorial({ step: tutorial.step + 1, show: true })
+                      }, 10)
+                    }
                   }}
                   onCopy={() => {
                     const id = Math.random().toString()
                     setMatrixes({
                       ...matrixes,
-                      [id]: { ...matrix, id },
+                      [id]: {
+                        ...matrix,
+                        id,
+                        created: new Date().toISOString(),
+                      },
                     })
+                    setScrollTo(id)
+                    if (tutorial.show) {
+                      setTutorial({ ...tutorial, show: false })
+                      setTimeout(() => {
+                        setTutorial({ step: tutorial.step + 1, show: true })
+                      }, 10)
+                    }
                   }}
                   onChange={value => {
                     setMatrixes({

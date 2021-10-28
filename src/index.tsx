@@ -1,9 +1,13 @@
 import { CssBaseline } from '@mui/material';
 import React from 'react';
 import ReactDOM from 'react-dom';
+
 import App from './App';
 import { Themes } from './components/Pixel/Themes';
 import reportWebVitals from './reportWebVitals';
+
+import './index.css'
+import 'intro.js/introjs.css';
 
 ReactDOM.render(
   <React.StrictMode>
