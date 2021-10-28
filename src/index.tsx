@@ -1,12 +1,17 @@
+import { CssBaseline } from '@mui/material';
 import React from 'react';
 import ReactDOM from 'react-dom';
-import './index.css';
 import App from './App';
+import { Themes } from './components/Pixel/Themes';
 import reportWebVitals from './reportWebVitals';
 
 ReactDOM.render(
   <React.StrictMode>
-    <App />
+    <Themes>
+      <CssBaseline>
+        <App />
+      </CssBaseline>
+    </Themes>
   </React.StrictMode>,
   document.getElementById('root')
 );
