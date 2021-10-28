@@ -7,6 +7,7 @@ import _ from 'lodash';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { SketchPicker } from 'react-color';
 import Draggable from 'react-draggable';
+
 import { Pixel, Rgb } from './components/Pixel/Pixel';
 import { ThemeButton, useDarkMode } from './components/Pixel/Themes';
 
@@ -90,11 +91,11 @@ function pythonFrom(config: MatrixConfig) {
       return Array.from(Array(width).keys()).map((c) => {
         return `(${(matrix[r]?.[c] || BLACK).join(', ')})`
       }).join(', ')
-    }).join('],\n    [')
+    }).join(',\n    ')
   )
   return `
 ${name.toUpperCase().replaceAll(' ', '_')} = [
-    [${content}],
+    ${content},
 ]
 `.trim()
 }
