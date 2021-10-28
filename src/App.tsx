@@ -144,10 +144,11 @@ function MatrixCard({ config, onChange, onDelete, onCopy, selectedColor, emptyCo
         <Box mx="auto" mt={2} onDragStart={e => e.preventDefault()}>
           {Array.from(Array(height).keys()).map((iRow) => {
             return (
-              <div style={{ textAlign: 'center' }} onDragStart={e => e.preventDefault()}>
+              <div key={iRow} style={{ textAlign: 'center' }} onDragStart={e => e.preventDefault()}>
                 {Array.from(Array(width).keys()).map((iColumn) => {
                   return (
                     <Pixel
+                      key={iColumn}
                       color={matrix[iRow]?.[iColumn] || emptyColor}
                       onChange={(clear) => {
                         const { [iRow]: { [iColumn]: current, ...row } = {}, ...rows } = matrix
