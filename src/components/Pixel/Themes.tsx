@@ -1,6 +1,5 @@
-import { Brightness4, Brightness6, BrightnessLow } from "@mui/icons-material";
-import { IconButton } from "@mui/material";
-import { ThemeOptions, ThemeProvider, createTheme } from "@mui/material";
+import { Brightness6, BrightnessLow } from "@mui/icons-material";
+import { createTheme, IconButton, ThemeOptions, ThemeProvider } from "@mui/material";
 import useLocalStorage from "@rehooks/local-storage";
 import { useMemo } from "react";
 
