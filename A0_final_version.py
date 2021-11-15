@@ -121,7 +121,6 @@ def knut_ola():
     angle = 0
     while True:
         sleep(0.1)
-        print(sense.get_orientation_degrees())
         new_angle = round(sense.get_orientation_degrees()['pitch'], 1)
         if sense.stick.direction_down:
             offset = angle
