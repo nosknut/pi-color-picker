@@ -112,18 +112,26 @@ def knut_ola():
             x2, y = make_continious(x, angle, tan)
             draw_water(angle, x2, y + 1)
 
+    def get_angle():
+        return round(sense.get_orientation_degrees()[AXIS], 1)
+
     # Sense setup
     sense.set_rotation(90)
     sense.set_imu_config(False, True, False)
 
-    # Main Loop
     offset = 0
+
+    def reset_orientation():
+        global offset
+        offset = get_angle()
+
+    sense.stick.direction_down = reset_orientation
+
+    # Main Loop
     angle = 0
     while True:
         sleep(0.1)
-        new_angle = round(sense.get_orientation_degrees()['pitch'], 1)
-        if sense.stick.direction_down:
-            offset = angle
+        new_angle = get_angle()
         if angle != new_angle:
             angle = new_angle
             sense_buffer.clear()
