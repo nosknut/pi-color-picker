@@ -28,9 +28,9 @@ def knut_ola():
 
     ######## Config ########
     # Uncomment the correct axis
-    AXIS = "pitch"
+    #AXIS = "pitch"
     #AXIS = "yaw"
-    #AXIS = "roll"
+    AXIS = "roll"
 
     COLOR = (255, 0, 0)
     BLACK = (0, 0, 0)
