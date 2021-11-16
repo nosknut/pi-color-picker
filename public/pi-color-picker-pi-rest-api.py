@@ -1,9 +1,13 @@
 ###### SETUP ######
-# sudo python3 -m pip install flask flask_cors
-# flask pi-color-picker-pi-rest-api.py
+# Run the following in the commandline with the pi admin user
+#   sudo python3 -m pip install flask, flask_cors
+#   export FLASK_APP=pi-color-picker-pi-rest-api.py
+#   flask run --host=0.0.0.0
 # Enter the following URL into the PI Url input
 #   at the top of the color picker website:
 #   http://PIENAME.is-very-sweet.org:5000/pattern
+# You should now see your canvas displayed on the pi
+#   in realtime after drawing new pixels
 
 from flask import Flask, request
 from sense_hat import SenseHat
