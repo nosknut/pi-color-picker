@@ -1,22 +1,21 @@
-import { Check, ContentCopy, Save } from '@mui/icons-material';
-import { Box, Button, Card, CardActions, CardContent, CardHeader, CircularProgress, IconButton, TextField, Tooltip, useTheme } from '@mui/material';
+import { Check, Colorize, ContentCopy, Save } from '@mui/icons-material';
+import { Box, Button, Card, CardActions, CardContent, CardHeader, CircularProgress, FormControlLabel, FormGroup, IconButton, Switch, TextField, Tooltip, useTheme } from '@mui/material';
 import copy from 'clipboard-copy';
 import _ from 'lodash';
 import React, { forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
 import { SketchPicker } from 'react-color';
 
-import { Pixel, Rgb } from './Pixel/Pixel';
+import { useClearMode } from '../atoms/ClearMode';
+import { usePickColor } from '../atoms/PickColor';
+import { BLACK } from '../constants/Colors';
+import { Rgb } from '../types/Rgb';
+import { Pixel } from './Pixel/Pixel';
 
 export type Matrix<T> = {
     [y: number]: {
         [x: number]: T
     }
 }
-
-export const BLACK: Rgb = [0, 0, 0]
-export const LIGHT_GRAY: Rgb = [200, 200, 200]
-export const GRAY: Rgb = [100, 100, 100]
-export const DEFAULT_COLOR: Rgb = [80, 150, 180]
 
 export type NumberInputProps = {
     label: string
@@ -151,7 +150,8 @@ export const MatrixCard = forwardRef(({ config, onChange, onDelete, onCopy, sele
                                     return (
                                         <Pixel
                                             key={iColumn}
-                                            color={matrix[iRow]?.[iColumn] || emptyColor}
+                                            color={matrix[iRow]?.[iColumn]}
+                                            emptyColor={emptyColor}
                                             onChange={(clear) => {
                                                 const { [iRow]: { [iColumn]: current, ...row } = {}, ...rows } = matrix
                                                 const newValue = clear ? {} : {
@@ -205,9 +205,43 @@ type ColorPickerProps = {
     value: Rgb
 }
 
+function useKeypressListener(key: string, onReset: (clicked: false) => void) {
+    const [state, setState] = useState(false)
+    useEffect(() => {
+        function downListener(e: KeyboardEvent) {
+            if (!e.repeat && (e.key === key)) {
+                setState(true)
+            }
+        }
+        function upListener(e: KeyboardEvent) {
+            if (!e.repeat && (e.key === key)) {
+                setState(false)
+                onReset(false)
+            }
+        }
+        window.addEventListener('keydown', downListener)
+        window.addEventListener('keyup', upListener)
+        return () => {
+            window.removeEventListener('keydown', downListener)
+            window.removeEventListener('keyup', upListener)
+        }
+    }, [setState, key, onReset])
+    return [state]
+}
 export function ColorPicker({ onChange, value }: ColorPickerProps) {
     const theme = useTheme()
     const [state, setState] = useState(value)
+    const [pickColor, setPickColor] = usePickColor()
+    const [clearMode, setClearMode] = useClearMode()
+    const [shiftPressed] = useKeypressListener('Shift', setClearMode)
+
+    useEffect(() => {
+        document.getElementById('root')?.setAttribute('data-delete-cursor', String(clearMode || shiftPressed))
+    }, [clearMode, shiftPressed])
+
+    useEffect(() => {
+        document.getElementById('root')?.setAttribute('data-pick-color-cursor', String(pickColor))
+    }, [pickColor])
 
     useEffect(() => {
         setState(value)
@@ -241,6 +275,28 @@ export function ColorPicker({ onChange, value }: ColorPickerProps) {
                         ])
                     }} />
             </CardContent>
+            <CardActions sx={{ justifyContent: 'right' }}>
+                <FormGroup>
+                    <FormControlLabel
+                        label="Delete Mode"
+                        labelPlacement="start"
+                        control={
+                            <Tooltip placement="top" title="Toggle clear mode (you can also hold the shift key)">
+                                <Switch
+                                    checked={shiftPressed || clearMode}
+                                    onChange={e => setClearMode(e.target.checked)}
+                                    inputProps={{ 'aria-label': 'toggle-clear-mode' }}
+                                />
+                            </Tooltip>
+                        }
+                    />
+                </FormGroup>
+                <Tooltip placement="top" title="Color picker. Enable this and click a pixel to use its color">
+                    <IconButton color={pickColor ? "secondary" : "primary"} onClick={() => setPickColor(!pickColor)}>
+                        <Colorize />
+                    </IconButton>
+                </Tooltip>
+            </CardActions>
         </Card>
     )
 }

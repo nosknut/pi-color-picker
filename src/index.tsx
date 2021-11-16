@@ -1,6 +1,7 @@
 import { CssBaseline } from '@mui/material';
 import React from 'react';
 import ReactDOM from 'react-dom';
+import { RecoilRoot } from 'recoil';
 
 import App from './App';
 import { Themes } from './components/Pixel/Themes';
@@ -13,7 +14,9 @@ ReactDOM.render(
   <React.StrictMode>
     <Themes>
       <CssBaseline>
-        <App />
+        <RecoilRoot>
+          <App />
+        </RecoilRoot>
       </CssBaseline>
     </Themes>
   </React.StrictMode>,

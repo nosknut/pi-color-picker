@@ -6,9 +6,11 @@ import copy from 'clipboard-copy';
 import { Step, Steps } from 'intro.js-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Draggable from 'react-draggable';
-import { ColorPicker, CopyMode, DEFAULT_COLOR, GRAY, LIGHT_GRAY, MatrixCard, MatrixConfig } from './components/MatrixCard';
-import { Rgb } from './components/Pixel/Pixel';
+
+import { useSelectedColor } from './atoms/SelectedColor';
+import { ColorPicker, CopyMode, MatrixCard, MatrixConfig } from './components/MatrixCard';
 import { ThemeButton, useDarkMode } from './components/Pixel/Themes';
+import { GRAY, LIGHT_GRAY } from './constants/Colors';
 
 function useStateHistory<T>(value: T) {
   const [historyIndex, setHistoryIndex] = useState<number>(0)
@@ -67,20 +69,20 @@ function makeSteps(lastMatrixId: string): Step[] {
 }
 
 const PI_SETUP_COMMAND = "curl -s http://pi-color-picker.web.app/install-pi-server.sh | bash /dev/stdin"
-function PiSetupModal({ open, close }: { open: boolean, close: ()=>void }) {
+function PiSetupModal({ open, close }: { open: boolean, close: () => void }) {
   return (
-  <Dialog
-    open={open}
-    onClose={()=>close()}
-    aria-labelledby="alert-dialog-title"
-    aria-describedby="alert-dialog-description"
-  >
-    <DialogTitle id="alert-dialog-title">
-      {"Set up PI for realtime updates"}
-    </DialogTitle>
-    <DialogContent>
-      <DialogContentText id="alert-dialog-description" sx={{whiteSpace: 'pre-wrap'}}>
-        {`This app is able to send http requests to your rapsberry pi,
+    <Dialog
+      open={open}
+      onClose={() => close()}
+      aria-labelledby="alert-dialog-title"
+      aria-describedby="alert-dialog-description"
+    >
+      <DialogTitle id="alert-dialog-title">
+        {"Set up PI for realtime updates"}
+      </DialogTitle>
+      <DialogContent>
+        <DialogContentText id="alert-dialog-description" sx={{ whiteSpace: 'pre-wrap' }}>
+          {`This app is able to send http requests to your rapsberry pi,
 which will let the changes you make in this website be immedietly
 reflected on the physical unit.
 
@@ -93,44 +95,44 @@ http://piename.is-very-sweet.org:5000/pattern
 When this is done, it's time to install the rest-api on the raspberry pi.
 To do this, run the following command:
         `}
-        <Card>
-          <CardContent>
-            {PI_SETUP_COMMAND} 
-          </CardContent>
-          <CardActions>
+          <Card>
+            <CardContent>
+              {PI_SETUP_COMMAND}
+            </CardContent>
+            <CardActions>
               <Tooltip placement="top" title="Copy install command to clipboard">
                 <IconButton color="primary" className="copy-install-command" size="small" onClick={() => copy(PI_SETUP_COMMAND)}>
-                    <ContentCopy />
-                  </IconButton>
+                  <ContentCopy />
+                </IconButton>
               </Tooltip>
-          </CardActions>
-        </Card>
-      </DialogContentText>
-    </DialogContent>
-    <DialogActions>
-      <Button onClick={() => close()} autoFocus>
-        Ok
-      </Button>
-    </DialogActions>
-  </Dialog>
+            </CardActions>
+          </Card>
+        </DialogContentText>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => close()} autoFocus>
+          Ok
+        </Button>
+      </DialogActions>
+    </Dialog>
   )
 }
 
-async function updatePi(url: string, matrix: MatrixConfig){
-  if(!url){
+async function updatePi(url: string, matrix: MatrixConfig) {
+  if (!url) {
     return
   }
   await fetch(url, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({matrix}),
+    body: JSON.stringify({ matrix }),
   })
 }
 
 function App() {
   const [copyMode, setCopyMode] = useState<CopyMode>('json')
   const [darkMode] = useDarkMode()
-  const [selectedColor, setSelectedColor] = useState<Rgb>(DEFAULT_COLOR)
+  const [selectedColor, setSelectedColor] = useSelectedColor()
   const [stored, setMatrixes] = useLocalStorage<{ [id: string]: MatrixConfig }>('matrixes', {})
   const emptyColor = darkMode ? GRAY : LIGHT_GRAY
   const [matrixes] = useStateHistory(stored)
@@ -195,72 +197,72 @@ function App() {
                 name="controlled-radio-buttons-group"
                 value={copyMode}
                 onChange={e => setCopyMode(e.target.value as CopyMode)}
-                >
+              >
                 <FormControlLabel value="json" control={<Radio />} label="Json" />
                 <FormControlLabel value="python" control={<Radio />} label="Python" />
               </RadioGroup>
             </FormControl>
           </Grid>
           <Grid item xs={12} sm>
-            <TextField 
-            fullWidth
-             variant="standard"
+            <TextField
+              fullWidth
+              variant="standard"
               placeholder="PI Url"
-               value={updatePiSettings.url}
-                onChange={e => setUpdatePiSettings({ ...updatePiSettings, url: e.target.value || '' })} 
-                InputProps={{
-                  startAdornment: (
-                    <Tooltip placement="top" title="Enable/Disable sending updates to this URL">
+              value={updatePiSettings.url}
+              onChange={e => setUpdatePiSettings({ ...updatePiSettings, url: e.target.value || '' })}
+              InputProps={{
+                startAdornment: (
+                  <Tooltip placement="top" title="Enable/Disable sending updates to this URL">
                     <Switch
                       checked={updatePiSettings.enableUpdatePi}
                       onChange={e => setUpdatePiSettings({ ...updatePiSettings, enableUpdatePi: !!e.target.checked })}
                       inputProps={{ 'aria-label': 'toggle-enable-update-pi' }}
                     />
-                      </Tooltip>
-                  ),
-                  endAdornment: (
-                    <>
-                    <IconButton 
+                  </Tooltip>
+                ),
+                endAdornment: (
+                  <>
+                    <IconButton
                       size="small"
                       color="primary"
                       onClick={() => setShowPiSetupModal(true)}
-                     >
+                    >
                       <Help />
                     </IconButton>
                     <Tooltip color={error ? "error" : "success"} placement="top" title={updatingPi ? 'Sending changes to PI ...' : (error ? ('Error: ' + error) : 'PI is updated')}>
-                    <IconButton size="small" className="save-indicator" >
+                      <IconButton size="small" className="save-indicator" >
                         {
-                            updatingPi ? <CircularProgress color="success" size={24} /> : (error ? <Error /> : <Check />)
+                          updatingPi ? <CircularProgress color="success" size={24} /> : (error ? <Error /> : <Check />)
                         }
-                    </IconButton>
-                </Tooltip>
-                </>
-                  )
-                }}
-                />
+                      </IconButton>
+                    </Tooltip>
+                  </>
+                )
+              }}
+            />
           </Grid>
         </Grid>
         <Snackbar
-        open={!!(showSnackbar && error)}
-        autoHideDuration={6000}
-        onClose={()=> setShowSnackbar(false)}        
-        message={error}
-        action={(
-          <>
-            <IconButton
-              size="small"
-              aria-label="close"
-              color="inherit"
-              onClick={()=> setShowSnackbar(false)}
-            >
-              <Close fontSize="small" />
-            </IconButton>
-        </>
-        )}
-      >
-        <Alert severity="error"onClose={() => setShowSnackbar(false)}>{error}</Alert>
-      </Snackbar>
-      <PiSetupModal open={showPiSetupModal} close={() => setShowPiSetupModal(false)} />
+          open={!!(showSnackbar && error)}
+          autoHideDuration={6000}
+          onClose={() => setShowSnackbar(false)}
+          message={error}
+          action={(
+            <>
+              <IconButton
+                size="small"
+                aria-label="close"
+                color="inherit"
+                onClick={() => setShowSnackbar(false)}
+              >
+                <Close fontSize="small" />
+              </IconButton>
+            </>
+          )}
+        >
+          <Alert severity="error" onClose={() => setShowSnackbar(false)}>{error}</Alert>
+        </Snackbar>
+        <PiSetupModal open={showPiSetupModal} close={() => setShowPiSetupModal(false)} />
       </Toolbar>
       <div id="add-matrix-btn" style={{ zIndex: 5000, position: 'fixed', bottom: 20, right: 20 }}>
         <Tooltip title="Add Matrix" placement="top">
@@ -337,17 +339,17 @@ function App() {
                     }
                   }}
                   onChange={value => {
-                    if(updatePiSettings.enableUpdatePi) {
+                    if (updatePiSettings.enableUpdatePi) {
                       setError('')
                       setUpdatingPi(true)
                       setShowSnackbar(false)
                       updatePi(updatePiSettings.url, value)
-                      .catch(e => {
-                        console.error(e)
-                        setError(e.message)
-                        setShowSnackbar(true)
-                      })
-                      .finally(()=> setUpdatingPi(false))
+                        .catch(e => {
+                          console.error(e)
+                          setError(e.message)
+                          setShowSnackbar(true)
+                        })
+                        .finally(() => setUpdatingPi(false))
                     }
                     setMatrixes({
                       ...matrixes,
