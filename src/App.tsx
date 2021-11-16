@@ -264,7 +264,7 @@ function App() {
         </Snackbar>
         <PiSetupModal open={showPiSetupModal} close={() => setShowPiSetupModal(false)} />
       </Toolbar>
-      <div id="add-matrix-btn" style={{ zIndex: 5000, position: 'fixed', bottom: 20, right: 20 }}>
+      <div id="add-matrix-btn" style={{ zIndex: 1200, position: 'fixed', bottom: 20, right: 20 }}>
         <Tooltip title="Add Matrix" placement="top">
           <Fab
             color="primary"
