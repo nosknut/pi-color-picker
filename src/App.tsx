@@ -1,7 +1,8 @@
-import { Add, Check, Close, Error, Help, Palette } from '@mui/icons-material';
-import { Alert, Avatar, Box, CircularProgress, Fab, FormControl, FormControlLabel, FormLabel, Grid, IconButton, Radio, RadioGroup, Snackbar, Switch, TextField, Toolbar, Tooltip, Typography } from '@mui/material';
+import { Add, Check, Close, ContentCopy, Error, Help, Palette } from '@mui/icons-material';
+import { Alert, Avatar, Box, Button, Card, CardActions, CardContent, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Fab, FormControl, FormControlLabel, FormLabel, Grid, IconButton, Radio, RadioGroup, Snackbar, Switch, TextField, Toolbar, Tooltip, Typography } from '@mui/material';
 import AppBar from '@mui/material/AppBar/AppBar';
 import useLocalStorage from '@rehooks/local-storage';
+import copy from 'clipboard-copy';
 import { Step, Steps } from 'intro.js-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Draggable from 'react-draggable';
@@ -65,6 +66,56 @@ function makeSteps(lastMatrixId: string): Step[] {
   ]
 }
 
+const PI_SETUP_COMMAND = "curl -s http://pi-color-picker.web.app/install-pi-server.sh | bash /dev/stdin"
+function PiSetupModal({ open, close }: { open: boolean, close: ()=>void }) {
+  return (
+  <Dialog
+    open={open}
+    onClose={()=>close()}
+    aria-labelledby="alert-dialog-title"
+    aria-describedby="alert-dialog-description"
+  >
+    <DialogTitle id="alert-dialog-title">
+      {"Set up PI for realtime updates"}
+    </DialogTitle>
+    <DialogContent>
+      <DialogContentText id="alert-dialog-description" sx={{whiteSpace: 'pre-wrap'}}>
+        {`This app is able to send http requests to your rapsberry pi,
+which will let the changes you make in this website be immedietly
+reflected on the physical unit.
+
+To use this feature, you must set the PI Url in the textbox to the top
+right of the page, to the full URL of your Raspberry PI.
+
+The address will likely look like this:
+http://piename.is-very-sweet.org:5000/pattern
+
+When this is done, it's time to install the rest-api on the raspberry pi.
+To do this, run the following command:
+        `}
+        <Card>
+          <CardContent>
+            {PI_SETUP_COMMAND} 
+          </CardContent>
+          <CardActions>
+              <Tooltip placement="top" title="Copy install command to clipboard">
+                <IconButton color="primary" className="copy-install-command" size="small" onClick={() => copy(PI_SETUP_COMMAND)}>
+                    <ContentCopy />
+                  </IconButton>
+              </Tooltip>
+          </CardActions>
+        </Card>
+      </DialogContentText>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={() => close()} autoFocus>
+        Ok
+      </Button>
+    </DialogActions>
+  </Dialog>
+  )
+}
+
 async function updatePi(url: string, matrix: MatrixConfig){
   if(!url){
     return
@@ -95,6 +146,7 @@ function App() {
   const [error, setError] = useState('')
   const [showSnackbar, setShowSnackbar] = useState(false)
   const [updatingPi, setUpdatingPi] = useState(false)
+  const [showPiSetupModal, setShowPiSetupModal] = useState(false)
 
   useEffect(() => {
     if (scrollTo === lastId) {
@@ -167,6 +219,14 @@ function App() {
                       </Tooltip>
                   ),
                   endAdornment: (
+                    <>
+                    <IconButton 
+                      size="small"
+                      color="primary"
+                      onClick={() => setShowPiSetupModal(true)}
+                     >
+                      <Help />
+                    </IconButton>
                     <Tooltip color={error ? "error" : "success"} placement="top" title={updatingPi ? 'Sending changes to PI ...' : (error ? ('Error: ' + error) : 'PI is updated')}>
                     <IconButton size="small" className="save-indicator" >
                         {
@@ -174,6 +234,7 @@ function App() {
                         }
                     </IconButton>
                 </Tooltip>
+                </>
                   )
                 }}
                 />
@@ -199,6 +260,7 @@ function App() {
       >
         <Alert severity="error"onClose={() => setShowSnackbar(false)}>{error}</Alert>
       </Snackbar>
+      <PiSetupModal open={showPiSetupModal} close={() => setShowPiSetupModal(false)} />
       </Toolbar>
       <div id="add-matrix-btn" style={{ zIndex: 5000, position: 'fixed', bottom: 20, right: 20 }}>
         <Tooltip title="Add Matrix" placement="top">
