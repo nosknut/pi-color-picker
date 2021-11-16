@@ -4,6 +4,7 @@ import copy from 'clipboard-copy';
 import _ from 'lodash';
 import React, { forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
 import { SketchPicker } from 'react-color';
+
 import { Pixel, Rgb } from './Pixel/Pixel';
 
 export type Matrix<T> = {
@@ -145,7 +146,7 @@ export const MatrixCard = forwardRef(({ config, onChange, onDelete, onCopy, sele
                 <Box mx="auto" className={'pixels'} mt={2} onDragStart={e => e.preventDefault()}>
                     {Array.from(Array(height).keys()).map((iRow) => {
                         return (
-                            <div key={iRow} style={{ textAlign: 'center' }} onDragStart={e => e.preventDefault()}>
+                            <div key={iRow} style={{ textAlign: 'center', lineHeight: 0 }} onDragStart={e => e.preventDefault()}>
                                 {Array.from(Array(width).keys()).map((iColumn) => {
                                     return (
                                         <Pixel
