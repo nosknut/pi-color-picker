@@ -23,14 +23,14 @@ def knut_ola():
 
     ######## Config ########
     # Uncomment if pixel rotation is oposite from physical rotation
-    #invert_rotation = 1
-    invert_rotation = -1
+    invert_rotation = 1
+    #invert_rotation = -1
 
     ######## Config ########
     # Uncomment the correct axis
     #AXIS = "pitch"
-    #AXIS = "yaw"
-    AXIS = "roll"
+    AXIS = "yaw"
+    #AXIS = "roll"
 
     COLOR = (255, 0, 0)
     BLACK = (0, 0, 0)
