@@ -294,7 +294,7 @@ function App() {
           </Fab>
         </Tooltip>
       </div>
-      <main>
+      <main style={{ marginBottom: "200px" }}>
         <Grid mt={2} container justifyContent="center" direction="row" spacing={2}>
           <Grid item>
             <Draggable>
