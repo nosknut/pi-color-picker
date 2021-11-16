@@ -1,5 +1,5 @@
-import { Add, Help, Palette } from '@mui/icons-material';
-import { Avatar, Box, Fab, FormControl, FormControlLabel, FormLabel, Grid, IconButton, Radio, RadioGroup, Toolbar, Tooltip, Typography } from '@mui/material';
+import { Add, Check, Close, Error, Help, Palette } from '@mui/icons-material';
+import { Alert, Avatar, Box, CircularProgress, Fab, FormControl, FormControlLabel, FormLabel, Grid, IconButton, Radio, RadioGroup, Snackbar, Switch, TextField, Toolbar, Tooltip, Typography } from '@mui/material';
 import AppBar from '@mui/material/AppBar/AppBar';
 import useLocalStorage from '@rehooks/local-storage';
 import { Step, Steps } from 'intro.js-react';
@@ -8,7 +8,6 @@ import Draggable from 'react-draggable';
 import { ColorPicker, CopyMode, DEFAULT_COLOR, GRAY, LIGHT_GRAY, MatrixCard, MatrixConfig } from './components/MatrixCard';
 import { Rgb } from './components/Pixel/Pixel';
 import { ThemeButton, useDarkMode } from './components/Pixel/Themes';
-
 
 function useStateHistory<T>(value: T) {
   const [historyIndex, setHistoryIndex] = useState<number>(0)
@@ -66,6 +65,17 @@ function makeSteps(lastMatrixId: string): Step[] {
   ]
 }
 
+async function updatePi(url: string, matrix: MatrixConfig){
+  if(!url){
+    return
+  }
+  await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({matrix}),
+  })
+}
+
 function App() {
   const [copyMode, setCopyMode] = useState<CopyMode>('json')
   const [darkMode] = useDarkMode()
@@ -81,6 +91,10 @@ function App() {
   }, [matrixes])
   const lastRef = useRef<any>()
   const [scrollTo, setScrollTo] = useState('')
+  const [updatePiSettings, setUpdatePiSettings] = useLocalStorage<{ url: string, enableUpdatePi: boolean }>('UPDATE_PI_SETTINGS', { url: '', enableUpdatePi: true })
+  const [error, setError] = useState('')
+  const [showSnackbar, setShowSnackbar] = useState(false)
+  const [updatingPi, setUpdatingPi] = useState(false)
 
   useEffect(() => {
     if (scrollTo === lastId) {
@@ -119,19 +133,72 @@ function App() {
       </AppBar>
       <Toolbar />
       <Toolbar sx={{ marginTop: 1 }}>
-        <FormControl component="fieldset" id="copy-mode-form">
-          <FormLabel component="span">Copy as</FormLabel>
-          <RadioGroup
-            row
-            aria-label="copyMode"
-            name="controlled-radio-buttons-group"
-            value={copyMode}
-            onChange={e => setCopyMode(e.target.value as CopyMode)}
-          >
-            <FormControlLabel value="json" control={<Radio />} label="Json" />
-            <FormControlLabel value="python" control={<Radio />} label="Python" />
-          </RadioGroup>
-        </FormControl>
+        <Grid container alignItems="center">
+          <Grid item xs={12} sm={6}>
+            <FormControl component="fieldset" id="copy-mode-form">
+              <FormLabel component="span">Copy as</FormLabel>
+              <RadioGroup
+                row
+                aria-label="copyMode"
+                name="controlled-radio-buttons-group"
+                value={copyMode}
+                onChange={e => setCopyMode(e.target.value as CopyMode)}
+                >
+                <FormControlLabel value="json" control={<Radio />} label="Json" />
+                <FormControlLabel value="python" control={<Radio />} label="Python" />
+              </RadioGroup>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm>
+            <TextField 
+            fullWidth
+             variant="standard"
+              placeholder="PI Url"
+               value={updatePiSettings.url}
+                onChange={e => setUpdatePiSettings({ ...updatePiSettings, url: e.target.value || '' })} 
+                InputProps={{
+                  startAdornment: (
+                    <Tooltip placement="top" title="Enable/Disable sending updates to this URL">
+                    <Switch
+                      checked={updatePiSettings.enableUpdatePi}
+                      onChange={e => setUpdatePiSettings({ ...updatePiSettings, enableUpdatePi: !!e.target.checked })}
+                      inputProps={{ 'aria-label': 'toggle-enable-update-pi' }}
+                    />
+                      </Tooltip>
+                  ),
+                  endAdornment: (
+                    <Tooltip color={error ? "error" : "success"} placement="top" title={updatingPi ? 'Sending changes to PI ...' : (error ? ('Error: ' + error) : 'PI is updated')}>
+                    <IconButton size="small" className="save-indicator" >
+                        {
+                            updatingPi ? <CircularProgress color="success" size={24} /> : (error ? <Error /> : <Check />)
+                        }
+                    </IconButton>
+                </Tooltip>
+                  )
+                }}
+                />
+          </Grid>
+        </Grid>
+        <Snackbar
+        open={!!(showSnackbar && error)}
+        autoHideDuration={6000}
+        onClose={()=> setShowSnackbar(false)}        
+        message={error}
+        action={(
+          <>
+            <IconButton
+              size="small"
+              aria-label="close"
+              color="inherit"
+              onClick={()=> setShowSnackbar(false)}
+            >
+              <Close fontSize="small" />
+            </IconButton>
+        </>
+        )}
+      >
+        <Alert severity="error"onClose={() => setShowSnackbar(false)}>{error}</Alert>
+      </Snackbar>
       </Toolbar>
       <div id="add-matrix-btn" style={{ zIndex: 5000, position: 'fixed', bottom: 20, right: 20 }}>
         <Tooltip title="Add Matrix" placement="top">
@@ -208,6 +275,18 @@ function App() {
                     }
                   }}
                   onChange={value => {
+                    if(updatePiSettings.enableUpdatePi) {
+                      setError('')
+                      setUpdatingPi(true)
+                      setShowSnackbar(false)
+                      updatePi(updatePiSettings.url, value)
+                      .catch(e => {
+                        console.error(e)
+                        setError(e.message)
+                        setShowSnackbar(true)
+                      })
+                      .finally(()=> setUpdatingPi(false))
+                    }
                     setMatrixes({
                       ...matrixes,
                       [value.id]: value,
