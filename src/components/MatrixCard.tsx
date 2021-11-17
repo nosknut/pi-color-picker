@@ -2,12 +2,13 @@ import { Check, Colorize, ContentCopy, Save } from '@mui/icons-material';
 import { Box, Button, Card, CardActions, CardContent, CardHeader, CircularProgress, FormControlLabel, FormGroup, IconButton, Switch, TextField, Tooltip, useTheme } from '@mui/material';
 import copy from 'clipboard-copy';
 import _ from 'lodash';
-import React, { forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SketchPicker } from 'react-color';
 
 import { useClearMode } from '../atoms/ClearMode';
 import { usePickColor } from '../atoms/PickColor';
 import { BLACK } from '../constants/Colors';
+import { useImperativeState } from '../hooks/useImperativeState';
 import { Rgb } from '../types/Rgb';
 import { Pixel } from './Pixel/Pixel';
 
@@ -77,8 +78,8 @@ export type MatrixCardProps = {
     config: MatrixConfig
     selectedColor: Rgb
     onChange: (value: MatrixConfig) => void
-    onDelete: () => void
-    onCopy: () => void
+    onDelete: (config: MatrixConfig) => void
+    onCopy: (config: MatrixConfig) => void
     emptyColor: Rgb
     copyMode: CopyMode
 }
@@ -100,10 +101,11 @@ export function pythonFrom(config: MatrixConfig) {
   `.trim()
 }
 
-export const MatrixCard = forwardRef(({ config, onChange, onDelete, onCopy, selectedColor, emptyColor, copyMode }: MatrixCardProps, ref) => {
+export const MatrixCard = React.memo(forwardRef(({ config, onChange, onDelete, onCopy, selectedColor, emptyColor, copyMode }: MatrixCardProps, ref) => {
     const [state, setState] = useState(config)
     const { height, width, name, matrix } = state
-
+    const [clearMode] = useClearMode()
+    const [pickColor, , setActiveColor] = usePickColor()
     const propagateChange = useMemo(() => _.debounce((newConfig: MatrixConfig) => {
         onChange(newConfig)
     }, 1000), [onChange])
@@ -114,9 +116,37 @@ export const MatrixCard = forwardRef(({ config, onChange, onDelete, onCopy, sele
         propagateChange(newConfig)
     }, [state, setState, propagateChange])
 
+    const imperativeState = useImperativeState({ selectedColor, update, clearMode, matrix, pickColor, setActiveColor })
+
     useEffect(() => {
         setState(config)
     }, [config, setState])
+
+    // This function is passed to all pixels on the screen. Avoid changing it often
+    const setPixel = useCallback((x: number, y: number, clear: boolean, color: Rgb | null) => {
+        const { selectedColor, update, clearMode, matrix, pickColor, setActiveColor } = imperativeState.current
+        if (pickColor) {
+            setActiveColor(color)
+        } else {
+            const clearPixel = clear || clearMode
+            const { [y]: { [x]: current, ...row } = {}, ...rows } = matrix
+            const newValue = clearPixel ? {} : {
+                [x]: selectedColor,
+            }
+            const newRowValues = {
+                ...row,
+                ...newValue,
+            }
+            update({
+                matrix: {
+                    ...rows,
+                    ...(Object.values(newRowValues).length ? {
+                        [y]: newRowValues,
+                    } : {})
+                },
+            })
+        }
+    }, [imperativeState])
 
     return (
         <Card elevation={2} id={"matrix-card-" + config.id} ref={ref as any}>
@@ -152,24 +182,9 @@ export const MatrixCard = forwardRef(({ config, onChange, onDelete, onCopy, sele
                                             key={iColumn}
                                             color={matrix[iRow]?.[iColumn]}
                                             emptyColor={emptyColor}
-                                            onChange={(clear) => {
-                                                const { [iRow]: { [iColumn]: current, ...row } = {}, ...rows } = matrix
-                                                const newValue = clear ? {} : {
-                                                    [iColumn]: selectedColor,
-                                                }
-                                                const newRowValues = {
-                                                    ...row,
-                                                    ...newValue,
-                                                }
-                                                update({
-                                                    matrix: {
-                                                        ...rows,
-                                                        ...(Object.values(newRowValues).length ? {
-                                                            [iRow]: newRowValues,
-                                                        } : {})
-                                                    },
-                                                })
-                                            }}
+                                            x={iColumn}
+                                            y={iRow}
+                                            onChange={setPixel}
                                         />
                                     )
                                 })}
@@ -179,7 +194,7 @@ export const MatrixCard = forwardRef(({ config, onChange, onDelete, onCopy, sele
                 </Box>
             </CardContent>
             <CardActions sx={{ justifyContent: 'right' }}>
-                <Button color="primary" className="copy" onClick={onCopy}>Copy</Button>
+                <Button color="primary" className="copy" onClick={() => onCopy(config)}>Copy</Button>
                 <Button className="fill" onClick={() => {
                     onChange({
                         ...config,
@@ -194,11 +209,11 @@ export const MatrixCard = forwardRef(({ config, onChange, onDelete, onCopy, sele
                 }
                 }>Fill</Button>
                 <Button className="clear" color="primary" onClick={() => onChange({ ...config, matrix: {} })}>Clear</Button>
-                <Button className="delete" color="primary" onClick={onDelete}>Delete</Button>
+                <Button className="delete" color="primary" onClick={() => onDelete(config)}>Delete</Button>
             </CardActions>
         </Card>
     )
-})
+}))
 
 type ColorPickerProps = {
     onChange: (value: Rgb) => void

@@ -1,15 +1,15 @@
 import styled from '@mui/material/styles/styled'
 import React from 'react'
-import { useClearMode } from '../../atoms/ClearMode'
-
-import { usePickColor } from '../../atoms/PickColor'
 import { Rgb } from '../../types/Rgb'
 import { keymap } from '../keymap'
+
 
 type PixelProps = {
     color: Rgb | null
     emptyColor: Rgb
-    onChange: (clear: boolean) => void
+    onChange: (x: number, y: number, clear: boolean, color: Rgb | null) => void
+    x: number
+    y: number
 }
 
 const FancyDiv = styled('div')`
@@ -21,16 +21,7 @@ const FancyDiv = styled('div')`
     cursor: inherit;
 `
 
-export function Pixel({ color, emptyColor, onChange }: PixelProps) {
-    const [clearMode] = useClearMode()
-    const [pickColor, , setColor] = usePickColor()
-    const onClick = (clear: boolean) => {
-        if (pickColor) {
-            setColor(color)
-        } else {
-            onChange(clear || clearMode)
-        }
-    }
+export const Pixel = React.memo(({ color, emptyColor, onChange, x, y }: PixelProps) => {
     return (
         <FancyDiv
             onDragStart={e => e.preventDefault()}
@@ -41,12 +32,12 @@ export function Pixel({ color, emptyColor, onChange }: PixelProps) {
             }}
             onMouseEnter={(e) => {
                 if (keymap.lmb) {
-                    onClick(e.shiftKey)
+                    onChange(x, y, e.shiftKey, color)
                 }
             }}
             onMouseDown={e => {
-                onClick(e.shiftKey)
+                onChange(x, y, e.shiftKey, color)
             }}
         />
     )
-}
+})

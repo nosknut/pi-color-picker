@@ -4,13 +4,14 @@ import AppBar from '@mui/material/AppBar/AppBar';
 import useLocalStorage from '@rehooks/local-storage';
 import copy from 'clipboard-copy';
 import { Step, Steps } from 'intro.js-react';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Draggable from 'react-draggable';
-
 import { useSelectedColor } from './atoms/SelectedColor';
 import { ColorPicker, CopyMode, MatrixCard, MatrixConfig } from './components/MatrixCard';
 import { ThemeButton, useDarkMode } from './components/Pixel/Themes';
 import { GRAY, LIGHT_GRAY } from './constants/Colors';
+import { useImperativeState } from './hooks/useImperativeState';
+
 
 function useStateHistory<T>(value: T) {
   const [historyIndex, setHistoryIndex] = useState<number>(0)
@@ -155,6 +156,67 @@ function App() {
       lastRef.current?.scrollIntoView?.({ behavior: 'smooth' })
     }
   }, [scrollTo, lastId, lastRef])
+
+  const imperativeState = useImperativeState({
+    setMatrixes,
+    setScrollTo,
+    setTutorial,
+    tutorial,
+    matrixes,
+    updatePiSettings,
+  })
+
+  const copyMatrix = useCallback((matrix) => {
+    const { setMatrixes, setScrollTo, setTutorial, tutorial, matrixes } = imperativeState.current
+    const id = Math.random().toString()
+    setMatrixes({
+      ...matrixes,
+      [id]: {
+        ...matrix,
+        id,
+        created: new Date().toISOString(),
+      },
+    })
+    setScrollTo(id)
+    if (tutorial.show) {
+      setTutorial({ ...tutorial, show: false })
+      setTimeout(() => {
+        setTutorial({ step: tutorial.step + 1, show: true })
+      }, 10)
+    }
+  }, [imperativeState])
+
+  const updateMatrix = useCallback(value => {
+    const { setMatrixes, matrixes, updatePiSettings } = imperativeState.current
+    if (updatePiSettings.enableUpdatePi) {
+      setError('')
+      setUpdatingPi(true)
+      setShowSnackbar(false)
+      updatePi(updatePiSettings.url, value)
+        .catch(e => {
+          console.error(e)
+          setError(e.message)
+          setShowSnackbar(true)
+        })
+        .finally(() => setUpdatingPi(false))
+    }
+    setMatrixes({
+      ...matrixes,
+      [value.id]: value,
+    })
+  }, [imperativeState])
+
+  const deleteMatrix = useCallback((matrix: MatrixConfig) => {
+    const { setMatrixes, matrixes, tutorial, setTutorial } = imperativeState.current
+    const { [matrix.id]: current, ...others } = matrixes
+    setMatrixes(others)
+    if (tutorial.show) {
+      setTutorial({ ...tutorial, show: false })
+      setTimeout(() => {
+        setTutorial({ step: tutorial.step + 1, show: true })
+      }, 10)
+    }
+  }, [imperativeState])
 
   return (
     <>
@@ -310,52 +372,9 @@ function App() {
                   emptyColor={emptyColor}
                   config={matrix}
                   selectedColor={selectedColor}
-                  onDelete={() => {
-                    const { [matrix.id]: current, ...others } = matrixes
-                    setMatrixes(others)
-                    if (tutorial.show) {
-                      setTutorial({ ...tutorial, show: false })
-                      setTimeout(() => {
-                        setTutorial({ step: tutorial.step + 1, show: true })
-                      }, 10)
-                    }
-                  }}
-                  onCopy={() => {
-                    const id = Math.random().toString()
-                    setMatrixes({
-                      ...matrixes,
-                      [id]: {
-                        ...matrix,
-                        id,
-                        created: new Date().toISOString(),
-                      },
-                    })
-                    setScrollTo(id)
-                    if (tutorial.show) {
-                      setTutorial({ ...tutorial, show: false })
-                      setTimeout(() => {
-                        setTutorial({ step: tutorial.step + 1, show: true })
-                      }, 10)
-                    }
-                  }}
-                  onChange={value => {
-                    if (updatePiSettings.enableUpdatePi) {
-                      setError('')
-                      setUpdatingPi(true)
-                      setShowSnackbar(false)
-                      updatePi(updatePiSettings.url, value)
-                        .catch(e => {
-                          console.error(e)
-                          setError(e.message)
-                          setShowSnackbar(true)
-                        })
-                        .finally(() => setUpdatingPi(false))
-                    }
-                    setMatrixes({
-                      ...matrixes,
-                      [value.id]: value,
-                    })
-                  }}
+                  onDelete={deleteMatrix}
+                  onCopy={copyMatrix}
+                  onChange={updateMatrix}
                 />
               </Grid>
             )
