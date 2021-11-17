@@ -249,7 +249,6 @@ function App() {
           <ThemeButton />
         </Toolbar>
       </AppBar>
-      <Toolbar />
       <Toolbar sx={{ marginTop: 1 }}>
         <Grid container alignItems="center">
           <Grid item xs={12} sm={6}>
