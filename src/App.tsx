@@ -6,12 +6,12 @@ import copy from 'clipboard-copy';
 import { Step, Steps } from 'intro.js-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Draggable from 'react-draggable';
+
 import { useSelectedColor } from './atoms/SelectedColor';
 import { ColorPicker, CopyMode, MatrixCard, MatrixConfig } from './components/MatrixCard';
 import { ThemeButton, useDarkMode } from './components/Pixel/Themes';
 import { GRAY, LIGHT_GRAY } from './constants/Colors';
 import { useImperativeState } from './hooks/useImperativeState';
-
 
 function useStateHistory<T>(value: T) {
   const [historyIndex, setHistoryIndex] = useState<number>(0)
@@ -48,6 +48,8 @@ function useStateHistory<T>(value: T) {
 function makeSteps(lastMatrixId: string): Step[] {
   const lastId = lastMatrixId.replace('.', '\\.')
   return [
+    { element: "#toggle-tutorial-btn", intro: 'Toggle Tutorial' },
+    { element: "#change-theme-btn", intro: 'Toggle Dark Mode' },
     { element: "#add-matrix-btn", intro: 'Create a new matrix' },
     { element: "#matrix-card-name-" + lastId, intro: 'Set the name of your matrix. This will be used when generating code' },
     { element: "#matrix-card-height-" + lastId, intro: 'Set the pixel height of your matrix' },
@@ -233,7 +235,7 @@ function App() {
           showStepNumbers: true,
         }}
       />
-      <AppBar position="fixed">
+      <AppBar position="relative">
         <Toolbar>
           <Avatar src="https://pi-color-picker.web.app/logo.png">
             <Palette />
@@ -241,7 +243,7 @@ function App() {
           <Box mr={1} />
           <Typography variant="h6">PI Color Picker</Typography>
           <Box mr="auto" />
-          <IconButton style={{ color: 'white' }} onClick={() => setTutorial({ ...tutorial, show: true })}>
+          <IconButton id="toggle-tutorial-btn" style={{ color: 'white' }} onClick={() => setTutorial({ ...tutorial, show: true })}>
             <Help />
           </IconButton>
           <ThemeButton />

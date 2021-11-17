@@ -30,7 +30,7 @@ export function useDarkMode(): [boolean, (theme: 'light' | 'dark') => void] {
 export function ThemeButton() {
     const [isDarkMode, setTheme] = useDarkMode()
     return (
-        <IconButton edge="end" sx={{ color: 'white' }} onClick={() => setTheme(isDarkMode ? 'light' : 'dark')}>
+        <IconButton id="change-theme-btn" edge="end" sx={{ color: 'white' }} onClick={() => setTheme(isDarkMode ? 'light' : 'dark')}>
             {isDarkMode ? <Brightness6 /> : <BrightnessLow />}
         </IconButton>
     )
