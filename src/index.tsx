@@ -7,6 +7,7 @@ import App from './App';
 import { Themes } from './components/Pixel/Themes';
 import reportWebVitals from './reportWebVitals';
 
+import './FirebaseConfig';
 import './index.css'
 import 'intro.js/introjs.css';
 
