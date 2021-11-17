@@ -2,15 +2,15 @@ import { Check, Colorize, ContentCopy, Save } from '@mui/icons-material';
 import { Box, Button, Card, CardActions, CardContent, CardHeader, CircularProgress, FormControlLabel, FormGroup, IconButton, Switch, TextField, Tooltip, useTheme } from '@mui/material';
 import copy from 'clipboard-copy';
 import _ from 'lodash';
-import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
 import { SketchPicker } from 'react-color';
-
 import { useClearMode } from '../atoms/ClearMode';
 import { usePickColor } from '../atoms/PickColor';
 import { BLACK } from '../constants/Colors';
 import { useImperativeState } from '../hooks/useImperativeState';
 import { Rgb } from '../types/Rgb';
 import { Pixel } from './Pixel/Pixel';
+
 
 export type Matrix<T> = {
     [y: number]: {
