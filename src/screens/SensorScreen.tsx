@@ -135,7 +135,7 @@ function DevicesScreen() {
                 <List subheader={<ListSubheader>Devices</ListSubheader>}>
                     {entryList.map(entry => {
                         return (
-                            <ListItem button component={Link} to={generatePath('/sensors/devices/:id', { id: entry.id })}>
+                            <ListItem key={entry.id} button component={Link} to={generatePath('/sensors/devices/:id', { id: entry.id })}>
                                 <ListItemText primary={entry.name} secondary={entry.url} />
                             </ListItem>
                         )
