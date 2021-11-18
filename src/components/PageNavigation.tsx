@@ -19,8 +19,8 @@ export function PageNavigation() {
                 <Typography variant="h6">PI Color Picker</Typography>
                 <Box mr="auto" />
                 <Routes>
-                    <Route path="/" element={<IconButton component={Link} to="/sensors"> <Sensors /> </IconButton>} />
-                    <Route path="/sensors" element={<IconButton component={Link} to="/"> <Palette /> </IconButton>} />
+                    <Route path="/" element={<IconButton sx={{ color: "white" }} component={Link} to="/sensors"> <Sensors /> </IconButton>} />
+                    <Route path="/sensors/*" element={<IconButton sx={{ color: "white" }} component={Link} to="/"> <Palette /> </IconButton>} />
                 </Routes>
                 <ColorPickerTutorialButton />
                 <ThemeButton />
