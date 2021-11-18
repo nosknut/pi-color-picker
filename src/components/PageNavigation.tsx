@@ -1,4 +1,4 @@
-import { Bluetooth, Palette } from '@mui/icons-material';
+import { Palette, Sensors } from '@mui/icons-material';
 import { Avatar, Box, IconButton, Toolbar, Typography } from '@mui/material';
 import AppBar from '@mui/material/AppBar/AppBar';
 import React from 'react';
@@ -19,8 +19,8 @@ export function PageNavigation() {
                 <Typography variant="h6">PI Color Picker</Typography>
                 <Box mr="auto" />
                 <Routes>
-                    <Route path="/" element={<IconButton component={Link} to="/bluetooth"> <Bluetooth /> </IconButton>} />
-                    <Route path="/bluetooth" element={<IconButton component={Link} to="/"> <Palette /> </IconButton>} />
+                    <Route path="/" element={<IconButton component={Link} to="/sensors"> <Sensors /> </IconButton>} />
+                    <Route path="/sensors" element={<IconButton component={Link} to="/"> <Palette /> </IconButton>} />
                 </Routes>
                 <ColorPickerTutorialButton />
                 <ThemeButton />

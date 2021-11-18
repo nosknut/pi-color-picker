@@ -2,8 +2,8 @@ import React from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 import { PageNavigation } from './components/PageNavigation';
-import { BluetoothScreen } from './screens/BluetoothScreen';
 import { ColorPickerScreen } from './screens/ColorPickerScreen';
+import { SensorScreen } from './screens/SensorScreen';
 
 function App() {
   return (
@@ -12,7 +12,7 @@ function App() {
         <PageNavigation />
         <Routes>
           <Route path="/" element={<ColorPickerScreen />} />
-          <Route path="/bluetooth" element={<BluetoothScreen />} />
+          <Route path="/sensors" element={<SensorScreen />} />
         </Routes>
       </BrowserRouter>
     </>
