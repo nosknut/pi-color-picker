@@ -7,15 +7,13 @@ import { SensorScreen } from './screens/SensorScreen';
 
 function App() {
   return (
-    <>
-      <BrowserRouter>
-        <PageNavigation />
-        <Routes>
-          <Route path="/" element={<ColorPickerScreen />} />
-          <Route path="/sensors" element={<SensorScreen />} />
-        </Routes>
-      </BrowserRouter>
-    </>
+    <BrowserRouter>
+      <PageNavigation />
+      <Routes>
+        <Route path="/" element={<ColorPickerScreen />} />
+        <Route path="/sensors/*" element={<SensorScreen />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
