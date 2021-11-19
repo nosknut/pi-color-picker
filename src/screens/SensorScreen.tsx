@@ -428,6 +428,15 @@ function flattenObject(o: object, prefix = '', result = {}, keepNull = true) {
     return result;
 }
 
+function JsonBlock({ json }: { json: string }) {
+    const [isDarkMode] = useDarkMode()
+    return (
+        <SyntaxHighlighter customStyle={{ margin: 0 }} language={'json'} style={isDarkMode ? materialDark : materialLight}>
+            {json}
+        </SyntaxHighlighter>
+    )
+}
+
 function DataInspectionModal({ mode, entries, setMode }: { mode: ViewMode, setMode: (mode: ViewMode) => void, entries: SensorEntry[] }) {
     const [contentType, setContentType] = useState<ContentType>('csv')
     const handleClose = useCallback(() => setMode(''), [setMode])
@@ -801,7 +810,7 @@ function HistoryEntryScreen() {
             <CardHeader title="Entry data" secondary={'Created: ' + (entry ? getHumanReadableTimestamp(new Date(entry.timestamp)) : 'Unknown')} />
             <CardContent>
                 <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap" }}>
-                    {JSON.stringify(entry, null, 2)}
+                    <JsonBlock json={JSON.stringify(entry, null, 2)} />
                 </Typography>
             </CardContent>
         </Card>
@@ -816,7 +825,7 @@ function CalibrationEntryScreen() {
             <CardHeader title="Entry data" secondary={'Created: ' + (entry ? getHumanReadableTimestamp(new Date(entry.timestamp)) : 'Unknown')} />
             <CardContent>
                 <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap" }}>
-                    {JSON.stringify(entry, null, 2)}
+                    <JsonBlock json={JSON.stringify(entry, null, 2)} />
                 </Typography>
             </CardContent>
         </Card>
