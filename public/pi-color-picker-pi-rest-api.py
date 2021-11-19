@@ -12,12 +12,21 @@
 from flask import Flask, request, jsonify
 from sense_hat import SenseHat
 from flask_cors import CORS, cross_origin
+from flask_socketio import SocketIO
+from time import sleep
+import threading
+
 sense = SenseHat()
 sense.set_imu_config(True, True, True)
 
 app = Flask(__name__)
 cors = CORS(app)
+#app.config['SECRET_KEY'] = 'secret!'
 app.config['CORS_HEADERS'] = 'Content-Type'
+socketio = SocketIO(app)
+
+if __name__ == '__main__':
+    socketio.run(app)
 
 
 @app.route('/pattern', methods=['PUT'])
@@ -28,13 +37,12 @@ def result():
     for y, row in body['matrix']['matrix'].items():
         for x, color in row.items():
             sense.set_pixel(int(x), int(y), color)
+            pass
     return 'Ok!'
 
 
-@app.route('/sensors', methods=['GET'])
-@cross_origin()
-def get_sensor_data():
-    return jsonify({
+def get_sensors():
+    return {
         'environmental': {
             'temperature': {
                 'temperature': sense.get_temperature(),
@@ -62,4 +70,46 @@ def get_sensor_data():
                 'raw': sense.get_accelerometer_raw(),
             },
         },
-    })
+    }
+
+
+connected_users = set()
+
+
+def sensor_broadcast_thread():
+    global connected_users
+    while len(connected_users):
+        socketio.emit('sensor_data', get_sensors(), broadcast=True)
+        sleep(0.2)
+
+
+sensor_data_thread = threading.Thread(target=sensor_broadcast_thread)
+sensor_data_thread.start()
+
+
+@socketio.on('subscribe_to_sensors')
+def subscribe_to_sensors(sid):
+    global connected_users
+    connected_users.add(sid)
+    if len(connected_users):
+        socketio.start_background_task(target=sensor_broadcast_thread)
+        if not sensor_data_thread.is_alive():
+            sensor_data_thread.start()
+
+
+@socketio.on('unsubscribe_from_sensors')
+def subscribe_to_sensors(sid):
+    global connected_users
+    connected_users.remove(sid)
+
+
+@socketio.on('disconnect')
+def disconnect(sid):
+    global connected_users
+    connected_users.remove(sid)
+
+
+@app.route('/sensors', methods=['GET'])
+@cross_origin()
+def get_sensor_data():
+    return jsonify(get_sensors())

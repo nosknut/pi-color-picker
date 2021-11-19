@@ -1,5 +1,6 @@
-import { Add, ArrowBack, Close, Code, Delete, Download, ExpandLess, ExpandMore, TableChart } from '@mui/icons-material';
-import { Alert, Button, ButtonGroup, Card, CardActionArea, CardActions, CardContent, CardHeader, Checkbox, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Fab, FormControlLabel, Grid, IconButton, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, ListSubheader, Paper, Radio, RadioGroup, Snackbar, TextField, Toolbar, Typography } from '@mui/material';
+import { Add, ArrowBack, Close, Code, Delete, Download, ExpandLess, ExpandMore, Stop, TableChart } from '@mui/icons-material';
+import { LoadingButton } from '@mui/lab';
+import { Alert, Button, ButtonGroup, Card, CardActionArea, CardActions, CardContent, CardHeader, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Fab, FormControlLabel, Grid, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, ListSubheader, Paper, Radio, RadioGroup, Snackbar, TextField, Toolbar, Typography } from '@mui/material';
 import { Box } from '@mui/system';
 import useLocalStorage from '@rehooks/local-storage';
 import copy from 'clipboard-copy';
@@ -11,6 +12,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { materialDark, materialLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 import { useDarkMode } from '../components/Pixel/Themes';
+import { useSocket } from '../hooks/useSocket';
 
 type Device = {
     id: string
@@ -80,6 +82,7 @@ type SensorData = {
 
 type SensorEntry = {
     id: string
+    name: string
     deviceId: string
     timestamp: string
     sensorData: SensorData
@@ -202,13 +205,13 @@ function DeviceForm({ id, device, createNew }: { id: string, device?: Device, cr
     return (
         <div>
             <Grid container spacing={3} justifyContent="center">
-                <Grid item xs={12} md={7}>
+                <Grid item xs={11} md={7}>
                     <Card>
                         <CardHeader title={createNew ? "Create Device" : "Edit Device"} />
                         <CardContent>
-                            <TextField id="name" label="Name" value={name} required onChange={e => setName(e.target.value)} fullWidth />
+                            <TextField label="Name" value={name} required onChange={e => setName(e.target.value)} fullWidth />
                             <Box my={2} />
-                            <TextField id="url" label="URL" value={url} required onChange={e => setUrl(e.target.value)} fullWidth />
+                            <TextField label="URL" value={url} required onChange={e => setUrl(e.target.value)} fullWidth />
                         </CardContent>
                         <CardActions>
                             <Button variant="outlined" onClick={onSubmit} disabled={!validInput}>
@@ -537,7 +540,7 @@ function DataDownloadButton({ entries }: { entries?: SensorEntry[] }) {
     )
 }
 
-function SensorEntryList({ entries, deleteEntries, max, deviceId, selected, onSelect }: { entries?: SensorEntry[], max?: number, deviceId: string, deleteEntries: (ids: string[]) => void, selected?: string, onSelect?: (id: string) => void }) {
+function SensorEntryList({ entries, setEntry, deleteEntries, max, deviceId, selected, onSelect }: { entries?: SensorEntry[], setEntry: (entry: SensorEntry) => void, max?: number, deviceId: string, deleteEntries: (ids: string[]) => void, selected?: string, onSelect?: (id: string) => void }) {
     const [showMore, setShowMore] = useState(false)
     const reversedEntryList = useMemo(() => {
         return entries?.slice().reverse().slice(0, showMore ? undefined : max)
@@ -549,33 +552,55 @@ function SensorEntryList({ entries, deleteEntries, max, deviceId, selected, onSe
         ) : (
             <>
                 <List disablePadding dense>
-                    <DataDownloadButton entries={entries} />
                     {isCalibrate ? (
                         <ListItem>
                             <ListItemText primary="Select Calibration refrence" />
                         </ListItem>
                     ) : null}
-                    {reversedEntryList.map(entry => (
-                        <ListItem key={entry.id}>
-                            {isCalibrate ? (
-                                <ListItemIcon>
-                                    <Checkbox
-                                        checked={selected === entry.id}
-                                        onChange={() => onSelect?.(entry.id)}
-                                    />
-                                </ListItemIcon>
-                            ) : null}
-                            <ListItemText primary={getHumanReadableTimestamp(new Date(entry.timestamp))} />
-                            <ListItemSecondaryAction>
-                                <Button component={Link} to={generatePath(`/sensors/devices/:id/${isCalibrate ? 'calibration' : 'history'}/:entryId`, { id: deviceId, entryId: entry.id })}>
-                                    View
-                                </Button>
-                                <IconButton color="error" onClick={() => deleteEntries([entry.id])}>
-                                    <Delete />
-                                </IconButton>
-                            </ListItemSecondaryAction>
-                        </ListItem>
-                    ))}
+                    <DataDownloadButton entries={entries} />
+                    {reversedEntryList.map(entry => {
+                        const labelId = `checkbox-list-label-${entry.id}`
+                        return (
+                            <RequestNameButtonModal
+                                key={entry.id}
+                                value={entry.name}
+                                editMode
+                                onSubmit={(name) => {
+                                    setEntry({ ...entry, name })
+                                }}
+                                trigger={(open) => (
+                                    <ListItem disablePadding secondaryAction={(
+                                        <>
+                                            <Button component={Link} to={generatePath(`/sensors/devices/:id/${isCalibrate ? 'calibration' : 'history'}/:entryId`, { id: deviceId, entryId: entry.id })}>
+                                                View
+                                            </Button>
+                                            <IconButton color="error" edge="end" onClick={() => deleteEntries([entry.id])}>
+                                                <Delete />
+                                            </IconButton>
+                                        </>
+                                    )}>
+                                        <ListItemButton role={undefined} onClick={() => {
+                                            open()
+                                            onSelect?.(entry.id)
+                                        }} dense>
+                                            {isCalibrate ? (
+                                                <ListItemIcon>
+                                                    <Checkbox
+                                                        edge="start"
+                                                        checked={selected === entry.id}
+                                                        tabIndex={-1}
+                                                        disableRipple
+                                                        inputProps={{ 'aria-labelledby': labelId }}
+                                                    />
+                                                </ListItemIcon>
+                                            ) : null}
+                                            <ListItemText id={labelId} primary={entry.name || 'Untitled'} secondary={getHumanReadableTimestamp(new Date(entry.timestamp))} />
+                                        </ListItemButton>
+                                    </ListItem>
+                                )}
+                            />
+                        )
+                    })}
                     {(entries?.length ?? 0) > (max ?? 0) ? (
                         <ListItem>
                             <Button
@@ -592,9 +617,10 @@ function SensorEntryList({ entries, deleteEntries, max, deviceId, selected, onSe
 }
 
 function HistoryList({ deviceId, max }: { deviceId: string, max?: number }) {
-    const { entryList, deleteEntries } = useSensorHistory()
+    const { entryList, deleteEntries, setEntry } = useSensorHistory()
     const { deviceEntryList } = useDeviceEntriesFor(entryList, deviceId)
     return <SensorEntryList
+        setEntry={setEntry}
         entries={deviceEntryList}
         deviceId={deviceId}
         max={max}
@@ -603,22 +629,23 @@ function HistoryList({ deviceId, max }: { deviceId: string, max?: number }) {
 }
 
 function CalibrationList({ deviceId, max }: { deviceId: string, max?: number }) {
-    const { entryList, deleteEntries } = useCalibrationData()
-    const { entry, setEntry } = useSelectedCalibrationData(deviceId)
+    const { entryList, deleteEntries, setEntry } = useCalibrationData()
+    const { entry, setEntry: setSelected } = useSelectedCalibrationData(deviceId)
     const { deviceEntryList } = useDeviceEntriesFor(entryList, deviceId)
     return <SensorEntryList
+        setEntry={setEntry}
         entries={deviceEntryList}
         deviceId={deviceId}
         max={max}
         deleteEntries={deleteEntries}
         selected={entry?.calibrationDataId}
         onSelect={useCallback((id: string) => {
-            setEntry({
+            setSelected({
                 id: deviceId,
                 calibrationDataId: id,
                 selectedAt: getTimestamp(),
             })
-        }, [setEntry, deviceId])}
+        }, [setSelected, deviceId])}
     />
 }
 
@@ -626,11 +653,21 @@ function getTimestamp() {
     return new Date().toISOString()
 }
 
-const getSensorEntry = (device: Device, requestGeolocationAccess?: () => void): Promise<SensorEntry | null | undefined> => getSensorData(device.url)
+async function shouldRequestGeolocation(): Promise<boolean> {
+    if ('geolocation' in navigator) {
+        return await navigator.permissions.query({ name: 'geolocation' }).then(function (result) {
+            return result.state === 'prompt'
+        })
+    }
+    return false
+}
+
+const getSensorEntry = (device: Device, name: string): Promise<SensorEntry | null | undefined> => getSensorData(device.url)
     .then(async (sensorData: SensorData) => {
         const createHistoryEntry = (sensorData: SensorData, location: GeolocationCoordinates | null) => {
             return ({
                 id: generateId(),
+                name,
                 deviceId: device.id,
                 timestamp: getTimestamp(),
                 sensorData,
@@ -648,15 +685,145 @@ const getSensorEntry = (device: Device, requestGeolocationAccess?: () => void): 
                             reject(error)
                         })
                     })
-                } else if (result.state === 'prompt') {
-                    requestGeolocationAccess?.()
-                    return null
                 }
             })
         } else {
             return createHistoryEntry(sensorData, null)
         }
     })
+
+const DataWindow = React.memo(({ url }: { url?: string }) => {
+    const [realtimeData, setRealtimeData] = useState<SensorData | null>(null)
+    const [socket, connected, connecting, connect] = useSocket(useMemo(() => ({
+        on_data(data: SensorData) {
+            setRealtimeData(data)
+        },
+    }), [setRealtimeData]))
+    useEffect(() => {
+        console.log(realtimeData)
+    }, [realtimeData])
+    console.log(socket)
+    return (
+        <>
+            <Box my={4} />
+            <Paper>
+                {(url && !connected) ? (
+                    connecting ? (
+                        <Button fullWidth variant="contained" color="warning" endIcon={<Stop />} onClick={() => connect(false)}>Connecting ...</Button>
+                    ) : (
+                        <Button fullWidth variant="contained" color="success" onClick={() => connect(true, url)}>Connect</Button>
+                    )
+                ) : (
+                    <Button fullWidth variant="contained" color="error" onClick={() => connect(false)}>Disonnect</Button>
+                )}
+                {connected ? (
+                    <pre>
+                        {JSON.stringify(realtimeData, null, 2)}
+                    </pre>
+                ) : null}
+                {url ? null : (
+                    <Typography variant="body2" color="text.secondary">
+                        Please add a device url
+                    </Typography>
+                )}
+            </Paper>
+        </>
+    )
+})
+
+function RequestNameButtonModal({ onSubmit, trigger, editMode, value }: { value?: string, editMode?: boolean, onSubmit: (name: string) => void, trigger: (open: () => void) => React.ReactElement }) {
+    const [name, setName] = useState(value || '')
+    const [open, setOpen] = useState(false)
+    const handleClose = () => {
+        setOpen(false)
+        if (!value) {
+            setName('')
+        }
+    }
+    const handleSubmit = () => {
+        setOpen(false)
+        onSubmit(name)
+        if (!value) {
+            setName('')
+        }
+    }
+    useEffect(() => {
+        setName(value || '')
+    }, [value, setName])
+    return (
+        <>
+            {trigger(() => setOpen(true))}
+            <Dialog open={open} onClose={handleClose}>
+                <DialogTitle>Entry Name</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Please enter a name for the entry
+                    </DialogContentText>
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Name"
+                        type="text"
+                        fullWidth
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                                handleSubmit()
+                            }
+                        }}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleClose} color="primary">
+                        Cancel
+                    </Button>
+                    <Button onClick={handleSubmit} color="primary">
+                        {editMode ? 'Save' : 'Create Entry'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </>
+    )
+}
+
+function RegisterSensorReadingButton({ device, onSubmit, label, setError }: { device: Device, setError: (error: Error) => void, label: string, onSubmit: (entry: SensorEntry) => void }) {
+    const [loading, setLoading] = useState(false)
+    return (
+        <RequestNameButtonModal
+            onSubmit={(name) => {
+                setLoading(true)
+                getSensorEntry(device, name).then(data => {
+                    if (data) {
+                        return onSubmit(data)
+                    }
+                }).catch(setError)
+                    .finally(() => {
+                        setLoading(false)
+                    })
+            }}
+            trigger={(openName) => (
+                <RequestLocationAccessModal
+                    onCancel={openName}
+                    trigger={(openGeo) => (
+                        <LoadingButton
+                            loadingIndicator={<CircularProgress color="primary" size={16} />}
+                            loading={loading}
+                            color="primary"
+                            onClick={async () => {
+                                const shouldRequest = await shouldRequestGeolocation()
+                                if (shouldRequest) {
+                                    openGeo()
+                                } else {
+                                    openName()
+                                }
+                            }}>
+                            {label}
+                        </LoadingButton>
+                    )} />
+            )} />
+    )
+}
 
 function DeviceScreen() {
     const { deviceId } = useParams()
@@ -669,9 +836,11 @@ function DeviceScreen() {
     const { deviceEntryList: deviceHistoryList } = useDeviceEntriesFor(historyList, deviceId)
     const { deviceEntryList: deviceCalibrationList } = useDeviceEntriesFor(calibrationList, deviceId)
 
-    const setError = (error: Error) => {
-        setErrorMessage(error.message)
-        console.error(error)
+    const setError = (error: Error | null) => {
+        setErrorMessage(error?.message || '')
+        if (error) {
+            console.error(error)
+        }
     }
 
     const calibrate = useCallback((sensorEntry: SensorEntry) => {
@@ -692,16 +861,17 @@ function DeviceScreen() {
 
     return (
         <div>
-            <ErrorNotification error={error} />
+            <ErrorNotification error={error} setError={setError} />
             <Routes>
                 <Route path="/edit" element={<DeviceForm id={deviceId} device={device} />} />
                 <Route path="/" element={(
                     <Grid container spacing={3} justifyContent="center">
-                        <Grid item xs={12} md={7}>
+                        <Grid item xs={11} md={7}>
                             <Card>
                                 <CardHeader title={device?.name || 'Unknown'} subheader={'Created: ' + (device?.createdAt ? getHumanReadableTimestamp(new Date(device.createdAt)) : 'Unknown')} />
                                 <CardContent>
                                     <Typography variant="body2" color="text.secondary">{device?.url || 'Unknown'}</Typography>
+                                    <DataWindow url={device?.url} />
                                 </CardContent>
                                 <CardActions>
                                     <Button
@@ -718,7 +888,7 @@ function DeviceScreen() {
                                 </CardActions>
                             </Card>
                         </Grid>
-                        <Grid item xs={12} md={7}>
+                        <Grid item xs={11} md={7}>
                             <Card>
                                 <CardHeader title="Calibration" />
                                 <CardContent>
@@ -729,26 +899,12 @@ function DeviceScreen() {
                                         Show Calibration History
                                     </Button>
                                     {device ? (
-                                        <RequestLocationAccessModal
-                                            onCancel={() => getSensorEntry(device).then(data => {
-                                                if (data) {
-                                                    calibrate(data)
-                                                }
-                                            }).catch(setError)}
-                                            trigger={(open) => (
-                                                <Button color="primary" onClick={() => getSensorEntry(device, open).then(data => {
-                                                    if (data) {
-                                                        calibrate(data)
-                                                    }
-                                                }).catch(setError)}>
-                                                    Calibrate
-                                                </Button>
-                                            )} />
+                                        <RegisterSensorReadingButton device={device} label="Calibrate" onSubmit={calibrate} setError={setError} />
                                     ) : null}
                                 </CardActions>
                             </Card>
                         </Grid>
-                        <Grid item xs={12} md={7}>
+                        <Grid item xs={11} md={7}>
                             <Card>
                                 <CardHeader title="History" />
                                 <CardContent>
@@ -759,21 +915,7 @@ function DeviceScreen() {
                                         Show History
                                     </Button>
                                     {device ? (
-                                        <RequestLocationAccessModal
-                                            onCancel={() => getSensorEntry(device).then(data => {
-                                                if (data) {
-                                                    setSensorEntry(data)
-                                                }
-                                            }).catch(setError)}
-                                            trigger={(open) => (
-                                                <Button color="primary" onClick={() => getSensorEntry(device, open).then(data => {
-                                                    if (data) {
-                                                        setSensorEntry(data)
-                                                    }
-                                                }).catch(setError)}>
-                                                    Add Log Entry
-                                                </Button>
-                                            )} />
+                                        <RegisterSensorReadingButton device={device} label="Add Log Entry" onSubmit={setSensorEntry} setError={setError} />
                                     ) : null}
                                 </CardActions>
                             </Card>
@@ -801,7 +943,7 @@ function HistoryScreen() {
             {deviceEntryList?.map(entry => {
                 return (
                     <ListItem key={entry.id} button component={Link} to={generatePath('/sensors/devices/:deviceId/history/:id', { deviceId: deviceId, id: entry.id })}>
-                        <ListItemText primary={getHumanReadableTimestamp(new Date(entry.timestamp))} />
+                        <ListItemText primary={entry.name || 'Untitled'} secondary={getHumanReadableTimestamp(new Date(entry.timestamp))} />
                     </ListItem>
                 )
             })}
@@ -848,7 +990,7 @@ function CalibrationScreen() {
             {deviceEntryList?.map(entry => {
                 return (
                     <ListItem key={entry.id} button component={Link} to={generatePath('/sensors/devices/:deviceId/calibration/:id', { deviceId: deviceId, id: entry.id })}>
-                        <ListItemText primary={getHumanReadableTimestamp(new Date(entry.timestamp))} />
+                        <ListItemText primary={entry.name || 'Untitled'} secondary={getHumanReadableTimestamp(new Date(entry.timestamp))} />
                     </ListItem>
                 )
             })}
@@ -856,19 +998,15 @@ function CalibrationScreen() {
     )
 }
 
-function ErrorNotification({ error }: { error: string }) {
-    const [showSnackbar, setShowSnackbar] = useState(false)
-    useEffect(() => {
-        console.log(error)
-        if (error) {
-            setShowSnackbar(true)
-        }
-    }, [error, setShowSnackbar])
+function ErrorNotification({ error, setError }: { error: string, setError: (error: null) => void }) {
+    const handleClose = () => {
+        setError(null)
+    }
     return (
         <Snackbar
-            open={!!(showSnackbar && error)}
+            open={!!error}
             autoHideDuration={6000}
-            onClose={() => setShowSnackbar(false)}
+            onClose={handleClose}
             message={error}
             action={(
                 <>
@@ -876,14 +1014,14 @@ function ErrorNotification({ error }: { error: string }) {
                         size="small"
                         aria-label="close"
                         color="inherit"
-                        onClick={() => setShowSnackbar(false)}
+                        onClick={handleClose}
                     >
                         <Close fontSize="small" />
                     </IconButton>
                 </>
             )}
         >
-            <Alert severity="error" onClose={() => setShowSnackbar(false)}>{error}</Alert>
+            <Alert severity="error" onClose={handleClose}>{error}</Alert>
         </Snackbar>
     )
 }
