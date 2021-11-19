@@ -1,10 +1,16 @@
-import { Add, ArrowBack, Close, Delete, ExpandLess, ExpandMore } from '@mui/icons-material';
-import { Alert, Button, Card, CardActions, CardContent, CardHeader, Checkbox, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Fab, Grid, IconButton, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, ListSubheader, Snackbar, TextField, Toolbar, Typography } from '@mui/material';
+import { Add, ArrowBack, Close, Code, Delete, Download, ExpandLess, ExpandMore, TableChart } from '@mui/icons-material';
+import { Alert, Button, ButtonGroup, Card, CardActionArea, CardActions, CardContent, CardHeader, Checkbox, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Fab, FormControlLabel, Grid, IconButton, List, ListItem, ListItemIcon, ListItemSecondaryAction, ListItemText, ListSubheader, Paper, Radio, RadioGroup, Snackbar, TextField, Toolbar, Typography } from '@mui/material';
 import { Box } from '@mui/system';
 import useLocalStorage from '@rehooks/local-storage';
+import copy from 'clipboard-copy';
+import { writeToString } from 'fast-csv';
 import _ from 'lodash';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { generatePath, Link, Route, Routes, useNavigate, useParams } from 'react-router-dom';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { materialDark, materialLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+import { useDarkMode } from '../components/Pixel/Themes';
 
 type Device = {
     id: string
@@ -29,35 +35,47 @@ type Vector = {
     z: number
 }
 
+type OrientationData = {
+    radians: Orientation
+    degrees: Orientation
+}
+type CompassData = {
+    compass: number
+    raw: number
+}
+type GyroscopeData = {
+    gyroscope: Vector
+    raw: Vector
+}
+
+type AccelerometerData = {
+    accelerometer: Vector
+    raw: Vector
+}
+
+type ImuData = {
+    orientation: OrientationData
+    compass: CompassData
+    gyroscope: GyroscopeData
+    accelerometer: AccelerometerData
+}
+
+type TemperatureData = {
+    temperature: number
+    humidity: number
+    pressure: number
+}
+
+type EnvironmentalData = {
+    temperature: TemperatureData
+    humidity: number
+    pressure: number
+}
+
 type SensorData = {
     timestamp: string
-    environmental: {
-        temperature: {
-            temperature: number
-            humidity: number
-            pressure: number
-        }
-        humidity: number
-        pressure: number
-    }
-    imu: {
-        orientation: {
-            radians: Orientation
-            degrees: Orientation
-        }
-        compass: {
-            compass: number
-            raw: number
-        }
-        gyroscope: {
-            gyroscope: Vector
-            raw: Vector
-        }
-        accelerometer: {
-            accelerometer: Vector
-            raw: Vector
-        }
-    }
+    environmental: EnvironmentalData
+    imu: ImuData
 }
 
 type SensorEntry = {
@@ -340,6 +358,174 @@ function RequestLocationAccessModal({ trigger, onCancel }: { onCancel: () => voi
     )
 }
 
+type ViewMode = 'view' | 'download' | ''
+type ContentType = 'json' | 'csv'
+
+function ContentTypeSwitch({ contentType, setContentType, }: { contentType: ContentType, setContentType: (contentType: ContentType) => void }) {
+    return (
+        <RadioGroup row value={contentType} onChange={e => {
+            setContentType(e.target.value as ContentType)
+        }}>
+            <FormControlLabel value="json" control={<Radio />} label="JSON" />
+            <FormControlLabel value="csv" control={<Radio />} label="CSV" />
+        </RadioGroup>
+    )
+}
+
+function downloadFile(filename: string, content: string) {
+    const element = document.createElement('a')
+    element.setAttribute('href', `data:text/plain;charset=utf-8,${encodeURIComponent(content)}`)
+    element.setAttribute('download', filename)
+    element.style.display = 'none'
+    document.body.appendChild(element)
+    element.click()
+    document.body.removeChild(element)
+}
+
+function CardButton({ onClick, label, icon }: { onClick: () => void, label: string, icon: React.ReactNode }) {
+    return (
+        <>
+
+            <Card >
+                <CardActionArea onClick={onClick}>
+                    <CardContent>
+                        <Box display="flex" alignItems="center" flexDirection="column" justifyContent="space-between">
+                            {icon}
+                            <Typography variant="body2" color="text.secondary">
+                                {label}
+                            </Typography>
+                        </Box>
+                    </CardContent>
+                </CardActionArea>
+            </Card>
+        </>
+    )
+}
+function flattenObject(o: object, prefix = '', result = {}, keepNull = true) {
+    if (_.isString(o) || _.isNumber(o) || _.isBoolean(o) || (keepNull && _.isNull(o))) {
+        //@ts-ignore
+        result[prefix] = o;
+        return result;
+    }
+
+    if (_.isArray(o) || _.isPlainObject(o)) {
+        for (let i in o) {
+            let pref = prefix;
+            if (_.isArray(o)) {
+                pref = pref + `${i}`;
+            } else {
+                if (_.isEmpty(prefix)) {
+                    pref = i;
+                } else {
+                    pref = prefix + '_' + i;
+                }
+            }
+            //@ts-ignore
+            flattenObject(o[i] as object, pref, result, keepNull);
+        }
+        return result;
+    }
+    return result;
+}
+
+function DataInspectionModal({ mode, entries, setMode }: { mode: ViewMode, setMode: (mode: ViewMode) => void, entries: SensorEntry[] }) {
+    const [contentType, setContentType] = useState<ContentType>('csv')
+    const handleClose = useCallback(() => setMode(''), [setMode])
+    const [csvString, setCsvString] = useState<string>('Processing ...')
+    const jsonString = useMemo(() => JSON.stringify({ entries }, null, 2), [entries])
+    const [isDarkMode] = useDarkMode()
+    useEffect(() => {
+        writeToString(entries.map(entry => flattenObject(entry)), {
+            headers: true,
+        }).then(setCsvString)
+    }, [entries])
+    return (
+        <Dialog open={!!mode} onClose={() => setMode('')} fullScreen={mode === "view"}>
+            <DialogTitle>{mode === 'view' ? 'View' : 'Download'} data as</DialogTitle>
+            <DialogContent sx={{ padding: mode === 'view' ? 0 : undefined, paddingBottom: 0, overflow: "hidden" }}>
+                {mode === 'view' ? (
+                    <>
+                        <Box px={2}>
+                            <ContentTypeSwitch contentType={contentType} setContentType={setContentType} />
+                        </Box>
+                        <Paper sx={{ overflow: "auto", height: '100%' }}>
+                            <SyntaxHighlighter customStyle={{ margin: 0 }} language={contentType} style={isDarkMode ? materialDark : materialLight}>
+                                {contentType === 'json' ? jsonString : csvString}
+                            </SyntaxHighlighter>
+                            <Box p={2} />
+                        </Paper>
+                    </>
+                ) : null}
+                {mode === 'download' ? (
+                    <>
+                        <Grid container spacing={2} height={100}>
+                            <Grid item xs={6}>
+                                <CardButton label="JSON" onClick={() => {
+                                    handleClose()
+                                    downloadFile(`pi-data-${new Date().toISOString()}.json`, jsonString)
+                                }} icon={<Code />} />
+                            </Grid>
+                            <Grid item xs={6}>
+                                <CardButton label="CSV" onClick={() => {
+                                    handleClose()
+                                    downloadFile(`pi-data-${new Date().toISOString()}.csv`, csvString)
+                                }} icon={<TableChart />} />
+                            </Grid>
+                        </Grid>
+                    </>
+                ) : null}
+            </DialogContent >
+            <DialogActions>
+                {mode === 'download' ? (
+                    <>
+                        <Button onClick={() => {
+                            handleClose()
+                        }} color="secondary">
+                            Cancel
+                        </Button>
+                    </>
+                ) : null}
+                {mode === 'view' ? (
+                    <>
+                        <Button onClick={() => {
+                            handleClose()
+                            copy(contentType === 'json' ? jsonString : csvString)
+                        }} color="primary">
+                            Copy to clipboard
+                        </Button>
+                        <Button onClick={() => {
+                            handleClose()
+                        }} color="primary">
+                            Done
+                        </Button>
+                    </>
+                ) : null}
+            </DialogActions>
+        </Dialog >
+    )
+}
+
+function DataDownloadButton({ entries }: { entries?: SensorEntry[] }) {
+    const [mode, setMode] = useState<ViewMode>('')
+    return (
+        <>
+
+            {entries?.length ? (
+                <ListItem>
+                    <DataInspectionModal mode={mode} setMode={setMode} entries={entries} />
+                    <ListItemText primary={`${entries.length} entries`} />
+                    <ListItemSecondaryAction>
+                        <ButtonGroup aria-label="download or view button group" size="small">
+                            <Button onClick={() => setMode('view')}>View</Button>
+                            <Button onClick={() => setMode('download')} endIcon={<Download />}>Download</Button>
+                        </ButtonGroup>
+                    </ListItemSecondaryAction>
+                </ListItem>
+            ) : null}
+        </>
+    )
+}
+
 function SensorEntryList({ entries, deleteEntry, max, deviceId, selected, onSelect }: { entries?: SensorEntry[], max?: number, deviceId: string, deleteEntry: (id: string) => void, selected?: string, onSelect?: (id: string) => void }) {
     const [showMore, setShowMore] = useState(false)
     const reversedEntryList = useMemo(() => {
@@ -352,6 +538,7 @@ function SensorEntryList({ entries, deleteEntry, max, deviceId, selected, onSele
         ) : (
             <>
                 <List disablePadding dense>
+                    <DataDownloadButton entries={entries} />
                     {isCalibrate ? (
                         <ListItem>
                             <ListItemText primary="Select Calibration refrence" />
