@@ -137,9 +137,11 @@ function useLocalStorageApi<T extends { id: string }>(key: string, entryId?: str
         entryList: Object.values(entryMap),
         entry: entryId ? entryMap[entryId] : undefined,
         setEntry: (entry: T) => setEntryMap({ ...entryMap, [entry.id]: entry }),
-        deleteEntry: (entryId: string) => {
-            const { [entryId]: current, ...rest } = entryMap
-            setEntryMap({ ...rest })
+        /**
+         * Must be batch write to revent race conflicts in localStorage
+         */
+        deleteEntries: (entryIds: string[]) => {
+            setEntryMap(_.omit(entryMap, entryIds))
         },
     }), [entryMap, setEntryMap, entryId])
 }
@@ -535,7 +537,7 @@ function DataDownloadButton({ entries }: { entries?: SensorEntry[] }) {
     )
 }
 
-function SensorEntryList({ entries, deleteEntry, max, deviceId, selected, onSelect }: { entries?: SensorEntry[], max?: number, deviceId: string, deleteEntry: (id: string) => void, selected?: string, onSelect?: (id: string) => void }) {
+function SensorEntryList({ entries, deleteEntries, max, deviceId, selected, onSelect }: { entries?: SensorEntry[], max?: number, deviceId: string, deleteEntries: (ids: string[]) => void, selected?: string, onSelect?: (id: string) => void }) {
     const [showMore, setShowMore] = useState(false)
     const reversedEntryList = useMemo(() => {
         return entries?.slice().reverse().slice(0, showMore ? undefined : max)
@@ -568,7 +570,7 @@ function SensorEntryList({ entries, deleteEntry, max, deviceId, selected, onSele
                                 <Button component={Link} to={generatePath(`/sensors/devices/:id/${isCalibrate ? 'calibration' : 'history'}/:entryId`, { id: deviceId, entryId: entry.id })}>
                                     View
                                 </Button>
-                                <IconButton color="error" onClick={() => deleteEntry(entry.id)}>
+                                <IconButton color="error" onClick={() => deleteEntries([entry.id])}>
                                     <Delete />
                                 </IconButton>
                             </ListItemSecondaryAction>
@@ -590,25 +592,25 @@ function SensorEntryList({ entries, deleteEntry, max, deviceId, selected, onSele
 }
 
 function HistoryList({ deviceId, max }: { deviceId: string, max?: number }) {
-    const { entryList, deleteEntry } = useSensorHistory()
+    const { entryList, deleteEntries } = useSensorHistory()
     const { deviceEntryList } = useDeviceEntriesFor(entryList, deviceId)
     return <SensorEntryList
         entries={deviceEntryList}
         deviceId={deviceId}
         max={max}
-        deleteEntry={deleteEntry}
+        deleteEntries={deleteEntries}
     />
 }
 
 function CalibrationList({ deviceId, max }: { deviceId: string, max?: number }) {
-    const { entryList, deleteEntry } = useCalibrationData()
+    const { entryList, deleteEntries } = useCalibrationData()
     const { entry, setEntry } = useSelectedCalibrationData(deviceId)
     const { deviceEntryList } = useDeviceEntriesFor(entryList, deviceId)
     return <SensorEntryList
         entries={deviceEntryList}
         deviceId={deviceId}
         max={max}
-        deleteEntry={deleteEntry}
+        deleteEntries={deleteEntries}
         selected={entry?.calibrationDataId}
         onSelect={useCallback((id: string) => {
             setEntry({
@@ -659,11 +661,13 @@ const getSensorEntry = (device: Device, requestGeolocationAccess?: () => void): 
 function DeviceScreen() {
     const { deviceId } = useParams()
     const navigate = useNavigate()
-    const { deleteEntry: deleteDevice, entry: device } = useDevices(deviceId)
-    const { setEntry: setSensorEntry } = useSensorHistory()
-    const { setEntry: setCurrentCalibrationEntry } = useSelectedCalibrationData(deviceId)
-    const { setEntry: createCalibrationEntry } = useCalibrationData()
+    const { deleteEntries: deleteDevices, entry: device } = useDevices(deviceId)
+    const { entryList: historyList, deleteEntries: deleteHistoryEntries, setEntry: setSensorEntry } = useSensorHistory()
+    const { deleteEntries: deleteDeviceCalibrationSettings, setEntry: setCurrentCalibrationEntry } = useSelectedCalibrationData(deviceId)
+    const { entryList: calibrationList, deleteEntries: deleteCalibrationEntries, setEntry: createCalibrationEntry } = useCalibrationData()
     const [error, setErrorMessage] = useState('')
+    const { deviceEntryList: deviceHistoryList } = useDeviceEntriesFor(historyList, deviceId)
+    const { deviceEntryList: deviceCalibrationList } = useDeviceEntriesFor(calibrationList, deviceId)
 
     const setError = (error: Error) => {
         setErrorMessage(error.message)
@@ -705,7 +709,10 @@ function DeviceScreen() {
                                         to={generatePath('/sensors/devices/:id/edit', { id: deviceId })}
                                     >Edit</Button>
                                     <DeleteConfirmation onDelete={() => {
-                                        deleteDevice(deviceId)
+                                        deleteHistoryEntries(deviceHistoryList?.map(entry => entry.id) || [])
+                                        deleteCalibrationEntries(deviceCalibrationList?.map(entry => entry.id) || [])
+                                        deleteDeviceCalibrationSettings([deviceId])
+                                        deleteDevices([deviceId])
                                         navigate("/sensors/devices")
                                     }} />
                                 </CardActions>
