@@ -83,6 +83,7 @@ type SensorData = {
 type SensorEntry = {
     id: string
     name: string
+    height: number | null
     deviceId: string
     timestamp: string
     sensorData: SensorData
@@ -519,6 +520,17 @@ function DataInspectionModal({ mode, entries, setMode }: { mode: ViewMode, setMo
     )
 }
 
+function heightFrom(entry: SensorEntry, refrence: SensorEntry) {
+    const T1: number = refrence.sensorData.environmental.temperature.temperature
+    const a: number = -0.0065
+    const p: number = entry.sensorData.environmental.pressure
+    const p1: number = refrence.sensorData.environmental.pressure
+    const R: number = 287.06
+    const g0: number = 9.81
+    const h1: number = refrence.height || 0
+    return (T1 / a) * (((p / p1) - ((a * R) / (g0))) - 1) + h1
+}
+
 function DataDownloadButton({ entries }: { entries?: SensorEntry[] }) {
     const [mode, setMode] = useState<ViewMode>('')
     return (
@@ -540,7 +552,7 @@ function DataDownloadButton({ entries }: { entries?: SensorEntry[] }) {
     )
 }
 
-function SensorEntryList({ entries, setEntry, deleteEntries, max, deviceId, selected, onSelect }: { entries?: SensorEntry[], setEntry: (entry: SensorEntry) => void, max?: number, deviceId: string, deleteEntries: (ids: string[]) => void, selected?: string, onSelect?: (id: string) => void }) {
+function SensorEntryList({ entries, setEntry, deleteEntries, max, deviceId, selected, onSelect, calibrationEntry }: { entries?: SensorEntry[], setEntry: (entry: SensorEntry) => void, max?: number, deviceId: string, deleteEntries: (ids: string[]) => void, selected?: string, onSelect?: (id: string) => void, calibrationEntry?: SensorEntry }) {
     const [showMore, setShowMore] = useState(false)
     const reversedEntryList = useMemo(() => {
         return entries?.slice().reverse().slice(0, showMore ? undefined : max)
@@ -594,7 +606,13 @@ function SensorEntryList({ entries, setEntry, deleteEntries, max, deviceId, sele
                                                     />
                                                 </ListItemIcon>
                                             ) : null}
-                                            <ListItemText id={labelId} primary={entry.name || 'Untitled'} secondary={getHumanReadableTimestamp(new Date(entry.timestamp))} />
+                                            <ListItemText id={labelId} primary={entry.name || 'Untitled'}
+                                                secondary={
+                                                    <div>
+                                                        <div>{calibrationEntry ? heightFrom(entry, calibrationEntry).toFixed(1) + 'm' : null}</div>
+                                                        <div>{getHumanReadableTimestamp(new Date(entry.timestamp))}</div>
+                                                    </div>
+                                                } />
                                         </ListItemButton>
                                     </ListItem>
                                 )}
@@ -619,12 +637,15 @@ function SensorEntryList({ entries, setEntry, deleteEntries, max, deviceId, sele
 function HistoryList({ deviceId, max }: { deviceId: string, max?: number }) {
     const { entryList, deleteEntries, setEntry } = useSensorHistory()
     const { deviceEntryList } = useDeviceEntriesFor(entryList, deviceId)
+    const { entry: calibrationProfile } = useSelectedCalibrationData(deviceId)
+    const { entry: calibrationEntry } = useCalibrationData(calibrationProfile?.calibrationDataId)
     return <SensorEntryList
         setEntry={setEntry}
         entries={deviceEntryList}
         deviceId={deviceId}
         max={max}
         deleteEntries={deleteEntries}
+        calibrationEntry={calibrationEntry}
     />
 }
 
@@ -668,6 +689,7 @@ const getSensorEntry = (device: Device, name: string): Promise<SensorEntry | nul
             return ({
                 id: generateId(),
                 name,
+                height: null,
                 deviceId: device.id,
                 timestamp: getTimestamp(),
                 sensorData,
