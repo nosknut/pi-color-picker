@@ -15,6 +15,7 @@ import { useRecoilValue, useSetRecoilState } from 'recoil';
 import { RealtimeDataAtom } from '../atoms/RealtimeData';
 import { useDarkMode } from '../components/Pixel/Themes';
 import { useSocket } from '../hooks/useSocket';
+import { CompassView } from './Compass';
 
 type Device = {
     id: string
@@ -727,6 +728,7 @@ const RealtimeDataBlock = React.memo(({ calibrationEntry }: { calibrationEntry?:
         <>
             {realtimeData ? (
                 <>
+                    <CompassView direction={realtimeData.imu.compass.compass} />
                     <Box my={4} />
                     <JsonBlock json={JSON.stringify({
                         ...realtimeData,
