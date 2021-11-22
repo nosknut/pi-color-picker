@@ -23,7 +23,7 @@ app = Flask(__name__)
 cors = CORS(app)
 #app.config['SECRET_KEY'] = 'secret!'
 app.config['CORS_HEADERS'] = 'Content-Type'
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 if __name__ == '__main__':
     socketio.run(app)
@@ -87,26 +87,33 @@ sensor_data_thread = threading.Thread(target=sensor_broadcast_thread)
 sensor_data_thread.start()
 
 
-@socketio.on('subscribe_to_sensors')
-def subscribe_to_sensors(sid):
+def start_thread():
     global connected_users
-    connected_users.add(sid)
+    global sensor_data_thread
     if len(connected_users):
-        socketio.start_background_task(target=sensor_broadcast_thread)
         if not sensor_data_thread.is_alive():
+            sensor_data_thread = threading.Thread(
+                target=sensor_broadcast_thread)
             sensor_data_thread.start()
 
 
-@socketio.on('unsubscribe_from_sensors')
-def subscribe_to_sensors(sid):
+@socketio.on('subscribe_to_sensors')
+def subscribe_to_sensors():
     global connected_users
-    connected_users.remove(sid)
+    connected_users.add(request.sid)
+    start_thread()
+
+
+@socketio.on('unsubscribe_from_sensors')
+def unsubscribe_from_sensors():
+    global connected_users
+    connected_users.remove(request.sid)
 
 
 @socketio.on('disconnect')
-def disconnect(sid):
+def disconnect():
     global connected_users
-    connected_users.remove(sid)
+    connected_users.remove(request.sid)
 
 
 @app.route('/sensors', methods=['GET'])
