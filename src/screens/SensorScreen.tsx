@@ -10,7 +10,9 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { generatePath, Link, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { materialDark, materialLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { useRecoilValue, useSetRecoilState } from 'recoil';
 
+import { RealtimeDataAtom } from '../atoms/RealtimeData';
 import { useDarkMode } from '../components/Pixel/Themes';
 import { useSocket } from '../hooks/useSocket';
 
@@ -74,7 +76,7 @@ type EnvironmentalData = {
     pressure: number
 }
 
-type SensorData = {
+export type SensorData = {
     timestamp: string
     environmental: EnvironmentalData
     imu: ImuData
@@ -715,39 +717,67 @@ const getSensorEntry = (device: Device, name: string): Promise<SensorEntry | nul
         }
     })
 
+const RealtimeDataBlock = React.memo(({ calibrationEntry }: { calibrationEntry?: SensorEntry }) => {
+    const realtimeData = useRecoilValue(RealtimeDataAtom)
+    return (
+        <>
+            {realtimeData ? (
+                <>
+                    <Box my={4} />
+                    <JsonBlock json={JSON.stringify({
+                        ...realtimeData,
+                        height: calibrationEntry ? heightFrom(realtimeData, calibrationEntry).toFixed(2) : null,
+                    }, null, 2)} />
+                </>
+            ) : null}
+        </>
+    )
+})
+
 const DataWindow = React.memo(({ url, calibrationEntry }: { url?: string, calibrationEntry?: SensorEntry }) => {
-    const [realtimeData, setRealtimeData] = useState<SensorData | null>(null)
+    const setRealtimeData = useSetRecoilState(RealtimeDataAtom)
+    const [telemetryActive, setTelemetryActive] = useState(false)
     const [socket, connected, connecting, connect] = useSocket(useMemo(() => ({
-        on_data(data: SensorData) {
+        sensor_data(data: SensorData) {
             setRealtimeData(data)
         },
     }), [setRealtimeData]))
     useEffect(() => {
-        console.log(realtimeData)
-    }, [realtimeData])
-    console.log(socket)
+        if (!connected) {
+            setTelemetryActive(false)
+        }
+    }, [connected])
     return (
         <>
             <Box my={4} />
             <Paper>
-                {(url && !connected) ? (
+                {((url && !connected) || !socket) ? (
                     connecting ? (
                         <Button fullWidth variant="contained" color="warning" endIcon={<Stop />} onClick={() => connect(false)}>Connecting ...</Button>
                     ) : (
                         <Button fullWidth variant="contained" color="success" onClick={() => connect(true, url)}>Connect</Button>
                     )
                 ) : (
-                    <Button fullWidth variant="contained" color="error" onClick={() => connect(false)}>Disonnect</Button>
+                    <Grid container spacing={2}>
+                        <Grid item sm={6} xs={12}>
+                            {telemetryActive ? (
+                                <Button fullWidth variant="contained" color="warning" onClick={() => {
+                                    socket.emit('unsubscribe_from_sensors')
+                                    setTelemetryActive(false)
+                                }}>Stop Telemetry</Button>
+                            ) : (
+                                <Button fullWidth variant="contained" color="success" onClick={() => {
+                                    socket.emit('subscribe_to_sensors')
+                                    setTelemetryActive(true)
+                                }}>Start Telemetry</Button>
+                            )}
+                        </Grid>
+                        <Grid item sm={6} xs={12}>
+                            <Button fullWidth variant="contained" color="error" onClick={() => connect(false)}>Disonnect</Button>
+                        </Grid>
+                    </Grid>
                 )}
-                {realtimeData ? (
-                    <>
-                        <Box my={4} />
-                        <JsonBlock json={JSON.stringify({
-                            ...realtimeData,
-                            height: calibrationEntry ? heightFrom(realtimeData, calibrationEntry).toFixed(2) : null,
-                        }, null, 2)} />
-                    </>
-                ) : null}
+                <RealtimeDataBlock calibrationEntry={calibrationEntry} />
                 {url ? null : (
                     <Typography variant="body2" color="text.secondary">
                         Please add a device url
@@ -850,6 +880,12 @@ function RegisterSensorReadingButton({ device, onSubmit, label, setError }: { de
                     )} />
             )} />
     )
+}
+
+function useCalibrationEntry(deviceId?: string) {
+    const { entry: calibrationSettings } = useSelectedCalibrationData(deviceId)
+    const { entry: calibrationEntry } = useCalibrationData(calibrationSettings?.calibrationDataId)
+    return [calibrationEntry]
 }
 
 function DeviceScreen() {
@@ -979,14 +1015,20 @@ function HistoryScreen() {
 }
 
 function HistoryEntryScreen() {
-    const { entryId } = useParams()
+    const { entryId, deviceId } = useParams()
     const { entry } = useSensorHistory(entryId)
+    const [calibrationEntry] = useCalibrationEntry(deviceId)
     return (
         <Card>
             <CardHeader title="Entry data" secondary={'Created: ' + (entry ? getHumanReadableTimestamp(new Date(entry.timestamp)) : 'Unknown')} />
             <CardContent>
                 <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "pre-wrap" }}>
-                    <JsonBlock json={JSON.stringify(entry, null, 2)} />
+                    <JsonBlock json={entry ? (
+                        JSON.stringify({
+                            ...entry,
+                            height: calibrationEntry ? heightFrom(entry.sensorData, calibrationEntry).toFixed(2) : null,
+                        }, null, 2)
+                    ) : "not found"} />
                 </Typography>
             </CardContent>
         </Card>
