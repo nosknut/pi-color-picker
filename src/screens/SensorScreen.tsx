@@ -743,12 +743,13 @@ const DataWindow = React.memo(({ url, calibrationEntry }: { url?: string, calibr
                     <Button fullWidth variant="contained" color="error" onClick={() => connect(false)}>Disonnect</Button>
                 )}
                 {realtimeData ? (
-                    <pre>
-                        {realtimeData ? JSON.stringify({
+                    <>
+                        <Box my={4} />
+                        <JsonBlock json={JSON.stringify({
                             ...realtimeData,
                             height: calibrationEntry ? heightFrom(realtimeData, calibrationEntry).toFixed(2) : null,
-                        }, null, 2) : null}
-                    </pre>
+                        }, null, 2)} />
+                    </>
                 ) : null}
                 {url ? null : (
                     <Typography variant="body2" color="text.secondary">
