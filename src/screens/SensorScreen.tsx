@@ -531,7 +531,7 @@ function heightFrom(entry: SensorData, refrence: SensorEntry) {
     const R: number = 287.06
     const g0: number = 9.81
     const h1: number = refrence.height || 0
-    return (T1 / a) * (((p / p1) - ((a * R) / (g0))) - 1) + h1
+    return (T1 / a) * (((p / p1) ** (- ((a * R) / g0))) - 1) + h1
 }
 
 function DataDownloadButton({ entries, refrence }: { entries?: SensorEntry[], refrence?: SensorEntry }) {
