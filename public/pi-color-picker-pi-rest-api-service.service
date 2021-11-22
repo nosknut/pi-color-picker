@@ -1,0 +1,16 @@
+[Unit]
+Description="pi-color-picker-pi-rest-api-service"
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/Documents/knut_ola
+Environment="FLASK_APP=pi-color-picker-pi-rest-api.py"
+ExecStart=/usr/bin/flask run --host=0.0.0.0
+
+[Install]
+WantedBy=multi-user.target
+
+### systemctl daemons reload
+### systemctl start pi-color-picker-pi-rest-api-service.service
+### systemctl enable pi-color-picker-pi-rest-api-service
+### systemctl status
