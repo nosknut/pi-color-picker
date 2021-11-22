@@ -443,17 +443,18 @@ function JsonBlock({ json }: { json: string }) {
     )
 }
 
-function DataInspectionModal({ mode, entries, setMode }: { mode: ViewMode, setMode: (mode: ViewMode) => void, entries: SensorEntry[] }) {
+function DataInspectionModal({ mode, entries, setMode, refrence }: { mode: ViewMode, setMode: (mode: ViewMode) => void, entries: SensorEntry[], refrence?: SensorEntry }) {
     const [contentType, setContentType] = useState<ContentType>('csv')
     const handleClose = useCallback(() => setMode(''), [setMode])
     const [csvString, setCsvString] = useState<string>('Processing ...')
-    const jsonString = useMemo(() => JSON.stringify({ entries }, null, 2), [entries])
+    const withHeight = useMemo(() => !refrence ? entries : entries.map(e => ({ ...e, height: heightFrom(e, refrence) })), [entries, refrence])
+    const jsonString = useMemo(() => JSON.stringify({ entries: withHeight }, null, 2), [withHeight])
     const [isDarkMode] = useDarkMode()
     useEffect(() => {
-        writeToString(entries.map(entry => flattenObject(entry)), {
+        writeToString(withHeight.map(entry => flattenObject(entry)), {
             headers: true,
         }).then(setCsvString)
-    }, [entries])
+    }, [withHeight])
     return (
         <Dialog open={!!mode} onClose={() => setMode('')} fullScreen={mode === "view"}>
             <DialogTitle>{mode === 'view' ? 'View' : 'Download'} data as</DialogTitle>
@@ -531,14 +532,14 @@ function heightFrom(entry: SensorEntry, refrence: SensorEntry) {
     return (T1 / a) * (((p / p1) - ((a * R) / (g0))) - 1) + h1
 }
 
-function DataDownloadButton({ entries }: { entries?: SensorEntry[] }) {
+function DataDownloadButton({ entries, refrence }: { entries?: SensorEntry[], refrence?: SensorEntry }) {
     const [mode, setMode] = useState<ViewMode>('')
     return (
         <>
 
             {entries?.length ? (
                 <ListItem>
-                    <DataInspectionModal mode={mode} setMode={setMode} entries={entries} />
+                    <DataInspectionModal mode={mode} setMode={setMode} entries={entries} refrence={refrence} />
                     <ListItemText primary={`${entries.length} entries`} />
                     <ListItemSecondaryAction>
                         <ButtonGroup aria-label="download or view button group" size="small">
@@ -569,7 +570,7 @@ function SensorEntryList({ entries, setEntry, deleteEntries, max, deviceId, sele
                             <ListItemText primary="Select Calibration refrence" />
                         </ListItem>
                     ) : null}
-                    <DataDownloadButton entries={entries} />
+                    <DataDownloadButton entries={entries} refrence={calibrationEntry} />
                     {reversedEntryList.map(entry => {
                         const labelId = `checkbox-list-label-${entry.id}`
                         return (
