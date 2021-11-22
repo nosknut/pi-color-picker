@@ -13,6 +13,7 @@ import { materialDark, materialLight } from 'react-syntax-highlighter/dist/esm/s
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 
 import { RealtimeDataAtom } from '../atoms/RealtimeData';
+import { NumberInput } from '../components/MatrixCard';
 import { useDarkMode } from '../components/Pixel/Themes';
 import { useSocket } from '../hooks/useSocket';
 
@@ -721,8 +722,10 @@ function round(this: any, key: string, value: any) {
     return value?.toFixed ? Number((value as number).toFixed(2)) : value
 }
 
-const RealtimeDataBlock = React.memo(({ calibrationEntry }: { calibrationEntry?: SensorEntry }) => {
+const RealtimeDataBlock = React.memo(({ calibrationEntry, floorHeight }: { calibrationEntry?: SensorEntry, floorHeight: number }) => {
     const realtimeData = useRecoilValue(RealtimeDataAtom)
+    const height = (calibrationEntry && realtimeData) ? Number(heightFrom(realtimeData, calibrationEntry).toFixed(2)) : null
+    const currentFloor = (height !== null) ? Math.ceil((height / floorHeight)) : null
     return (
         <>
             {realtimeData ? (
@@ -730,7 +733,8 @@ const RealtimeDataBlock = React.memo(({ calibrationEntry }: { calibrationEntry?:
                     <Box my={4} />
                     <JsonBlock json={JSON.stringify({
                         ...realtimeData,
-                        height: calibrationEntry ? heightFrom(realtimeData, calibrationEntry).toFixed(2) : null,
+                        height,
+                        currentFloor,
                     }, round, 2)} />
                 </>
             ) : null}
@@ -741,6 +745,7 @@ const RealtimeDataBlock = React.memo(({ calibrationEntry }: { calibrationEntry?:
 const DataWindow = React.memo(({ url, calibrationEntry }: { url?: string, calibrationEntry?: SensorEntry }) => {
     const setRealtimeData = useSetRecoilState(RealtimeDataAtom)
     const [telemetryActive, setTelemetryActive] = useState(false)
+    const [floorHeight, setFloorHeight] = useState(2.7)
     const [socket, connected, connecting, connect] = useSocket(useMemo(() => ({
         sensor_data(data: SensorData) {
             setRealtimeData(data)
@@ -753,8 +758,14 @@ const DataWindow = React.memo(({ url, calibrationEntry }: { url?: string, calibr
     }, [connected])
     return (
         <>
-            <Box my={4} />
+            <Box my={2} />
             <Paper>
+                <NumberInput
+                    label="Floor height"
+                    value={floorHeight}
+                    onChange={(value) => setFloorHeight(value)}
+                />
+                <Box my={2} />
                 {((url && !connected) || !socket) ? (
                     connecting ? (
                         <Button fullWidth variant="contained" color="warning" endIcon={<Stop />} onClick={() => connect(false)}>Connecting ...</Button>
@@ -781,7 +792,7 @@ const DataWindow = React.memo(({ url, calibrationEntry }: { url?: string, calibr
                         </Grid>
                     </Grid>
                 )}
-                <RealtimeDataBlock calibrationEntry={calibrationEntry} />
+                <RealtimeDataBlock calibrationEntry={calibrationEntry} floorHeight={floorHeight} />
                 {url ? null : (
                     <Typography variant="body2" color="text.secondary">
                         Please add a device url
