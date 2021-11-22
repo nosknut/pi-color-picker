@@ -717,6 +717,10 @@ const getSensorEntry = (device: Device, name: string): Promise<SensorEntry | nul
         }
     })
 
+function round(this: any, key: string, value: any) {
+    return value?.toFixed ? Number((value as number).toFixed(2)) : value
+}
+
 const RealtimeDataBlock = React.memo(({ calibrationEntry }: { calibrationEntry?: SensorEntry }) => {
     const realtimeData = useRecoilValue(RealtimeDataAtom)
     return (
@@ -727,7 +731,7 @@ const RealtimeDataBlock = React.memo(({ calibrationEntry }: { calibrationEntry?:
                     <JsonBlock json={JSON.stringify({
                         ...realtimeData,
                         height: calibrationEntry ? heightFrom(realtimeData, calibrationEntry).toFixed(2) : null,
-                    }, null, 2)} />
+                    }, round, 2)} />
                 </>
             ) : null}
         </>
