@@ -71,7 +71,7 @@ function makeSteps(lastMatrixId: string): Step[] {
     ]
 }
 
-const PI_SETUP_COMMAND = "curl -s http://pi-color-picker.web.app/install-pi-server.sh | bash /dev/stdin"
+const PI_SETUP_COMMAND = "sudo curl https://pi-color-picker.web.app/install-pi-server.sh | sudo bash"
 function PiSetupModal({ open, close }: { open: boolean, close: () => void }) {
     return (
         <Dialog
