@@ -718,7 +718,8 @@ const getSensorEntry = (device: Device, name: string): Promise<SensorEntry | nul
 const DataWindow = React.memo(({ url, calibrationEntry }: { url?: string, calibrationEntry?: SensorEntry }) => {
     const [realtimeData, setRealtimeData] = useState<SensorData | null>(null)
     const [socket, connected, connecting, connect] = useSocket(useMemo(() => ({
-        on_data(data: SensorData) {
+        sensor_data(data: SensorData) {
+            console.log(data)
             setRealtimeData(data)
         },
     }), [setRealtimeData]))
@@ -730,14 +731,18 @@ const DataWindow = React.memo(({ url, calibrationEntry }: { url?: string, calibr
         <>
             <Box my={4} />
             <Paper>
-                {(url && !connected) ? (
+                {((url && !connected) || !socket) ? (
                     connecting ? (
                         <Button fullWidth variant="contained" color="warning" endIcon={<Stop />} onClick={() => connect(false)}>Connecting ...</Button>
                     ) : (
                         <Button fullWidth variant="contained" color="success" onClick={() => connect(true, url)}>Connect</Button>
                     )
                 ) : (
+                    <>
                     <Button fullWidth variant="contained" color="error" onClick={() => connect(false)}>Disonnect</Button>
+                    <Button fullWidth variant="contained" color="success" onClick={() => socket.emit('subscribe_to_sensors')}>Start Telemetry</Button>
+                    <Button fullWidth variant="contained" color="warning" onClick={() => socket.emit('unsubscribe_from_sensors')}>Stop Telemetry</Button>
+                    </>
                 )}
                 {realtimeData ? (
                     <>
