@@ -725,9 +725,6 @@ const DataWindow = React.memo(({ url, calibrationEntry }: { url?: string, calibr
     useEffect(() => {
         console.log(realtimeData)
     }, [realtimeData])
-    useEffect(() => {
-        getSensorData('test').then(setRealtimeData)
-    }, [setRealtimeData])
     console.log(socket)
     return (
         <>
