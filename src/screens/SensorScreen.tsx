@@ -447,7 +447,7 @@ function DataInspectionModal({ mode, entries, setMode, refrence }: { mode: ViewM
     const [contentType, setContentType] = useState<ContentType>('csv')
     const handleClose = useCallback(() => setMode(''), [setMode])
     const [csvString, setCsvString] = useState<string>('Processing ...')
-    const withHeight = useMemo(() => !refrence ? entries : entries.map(e => ({ ...e, height: heightFrom(e, refrence) })), [entries, refrence])
+    const withHeight = useMemo(() => !refrence ? entries : entries.map(e => ({ ...e, height: heightFrom(e.sensorData, refrence) })), [entries, refrence])
     const jsonString = useMemo(() => JSON.stringify({ entries: withHeight }, null, 2), [withHeight])
     const [isDarkMode] = useDarkMode()
     useEffect(() => {
@@ -521,10 +521,10 @@ function DataInspectionModal({ mode, entries, setMode, refrence }: { mode: ViewM
     )
 }
 
-function heightFrom(entry: SensorEntry, refrence: SensorEntry) {
+function heightFrom(entry: SensorData, refrence: SensorEntry) {
     const T1: number = refrence.sensorData.environmental.temperature.temperature
     const a: number = -0.0065
-    const p: number = entry.sensorData.environmental.pressure
+    const p: number = entry.environmental.pressure
     const p1: number = refrence.sensorData.environmental.pressure
     const R: number = 287.06
     const g0: number = 9.81
@@ -610,7 +610,7 @@ function SensorEntryList({ entries, setEntry, deleteEntries, max, deviceId, sele
                                             <ListItemText id={labelId} primary={entry.name || 'Untitled'}
                                                 secondary={
                                                     <div>
-                                                        <div>{calibrationEntry ? heightFrom(entry, calibrationEntry).toFixed(1) + 'm' : null}</div>
+                                                        <div>{calibrationEntry ? heightFrom(entry.sensorData, calibrationEntry).toFixed(1) + 'm' : null}</div>
                                                         <div>{getHumanReadableTimestamp(new Date(entry.timestamp))}</div>
                                                     </div>
                                                 } />
@@ -715,7 +715,7 @@ const getSensorEntry = (device: Device, name: string): Promise<SensorEntry | nul
         }
     })
 
-const DataWindow = React.memo(({ url }: { url?: string }) => {
+const DataWindow = React.memo(({ url, calibrationEntry }: { url?: string, calibrationEntry?: SensorEntry }) => {
     const [realtimeData, setRealtimeData] = useState<SensorData | null>(null)
     const [socket, connected, connecting, connect] = useSocket(useMemo(() => ({
         on_data(data: SensorData) {
@@ -725,6 +725,9 @@ const DataWindow = React.memo(({ url }: { url?: string }) => {
     useEffect(() => {
         console.log(realtimeData)
     }, [realtimeData])
+    useEffect(() => {
+        getSensorData('test').then(setRealtimeData)
+    }, [setRealtimeData])
     console.log(socket)
     return (
         <>
@@ -739,9 +742,12 @@ const DataWindow = React.memo(({ url }: { url?: string }) => {
                 ) : (
                     <Button fullWidth variant="contained" color="error" onClick={() => connect(false)}>Disonnect</Button>
                 )}
-                {connected ? (
+                {realtimeData ? (
                     <pre>
-                        {JSON.stringify(realtimeData, null, 2)}
+                        {realtimeData ? JSON.stringify({
+                            ...realtimeData,
+                            height: calibrationEntry ? heightFrom(realtimeData, calibrationEntry).toFixed(2) : null,
+                        }, null, 2) : null}
                     </pre>
                 ) : null}
                 {url ? null : (
@@ -853,8 +859,8 @@ function DeviceScreen() {
     const navigate = useNavigate()
     const { deleteEntries: deleteDevices, entry: device } = useDevices(deviceId)
     const { entryList: historyList, deleteEntries: deleteHistoryEntries, setEntry: setSensorEntry } = useSensorHistory()
-    const { deleteEntries: deleteDeviceCalibrationSettings, setEntry: setCurrentCalibrationEntry } = useSelectedCalibrationData(deviceId)
-    const { entryList: calibrationList, deleteEntries: deleteCalibrationEntries, setEntry: createCalibrationEntry } = useCalibrationData()
+    const { deleteEntries: deleteDeviceCalibrationSettings, setEntry: setCurrentCalibrationEntry, entry: calibrationSettings } = useSelectedCalibrationData(deviceId)
+    const { entryList: calibrationList, deleteEntries: deleteCalibrationEntries, setEntry: createCalibrationEntry, entry: calibrationEntry } = useCalibrationData(calibrationSettings?.calibrationDataId)
     const [error, setErrorMessage] = useState('')
     const { deviceEntryList: deviceHistoryList } = useDeviceEntriesFor(historyList, deviceId)
     const { deviceEntryList: deviceCalibrationList } = useDeviceEntriesFor(calibrationList, deviceId)
@@ -894,7 +900,7 @@ function DeviceScreen() {
                                 <CardHeader title={device?.name || 'Unknown'} subheader={'Created: ' + (device?.createdAt ? getHumanReadableTimestamp(new Date(device.createdAt)) : 'Unknown')} />
                                 <CardContent>
                                     <Typography variant="body2" color="text.secondary">{device?.url || 'Unknown'}</Typography>
-                                    <DataWindow url={device?.url} />
+                                    <DataWindow url={device?.url} calibrationEntry={calibrationEntry} />
                                 </CardContent>
                                 <CardActions>
                                     <Button
