@@ -725,7 +725,7 @@ function round(this: any, key: string, value: any) {
 const RealtimeDataBlock = React.memo(({ calibrationEntry, floorHeight }: { calibrationEntry?: SensorEntry, floorHeight: number }) => {
     const realtimeData = useRecoilValue(RealtimeDataAtom)
     const height = (calibrationEntry && realtimeData) ? Number(heightFrom(realtimeData, calibrationEntry).toFixed(2)) : null
-    const currentFloor = (height !== null) ? Math.ceil((height / floorHeight)) : null
+    const currentFloor = (height !== null) ? (((height < 0) ? -1 : 1) * Math.ceil((Math.abs(height) / floorHeight))) : null
     return (
         <>
             {realtimeData ? (
