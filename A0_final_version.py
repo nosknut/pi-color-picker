@@ -119,11 +119,14 @@ def knut_ola():
     sense.set_rotation(90)
     sense.set_imu_config(False, True, False)
 
-    offset = 0
+    # Making this a dict is a hack.
+    # You can not use global to access fields inside a function scope
+    offset = {
+        'value': 0
+    }
 
     def reset_orientation():
-        global offset
-        offset = get_angle()
+        offset['value'] = get_angle()
 
     sense.stick.direction_down = reset_orientation
 
@@ -135,7 +138,7 @@ def knut_ola():
         if angle != new_angle:
             angle = new_angle
             sense_buffer.clear()
-            draw_horizon(invert_rotation * (angle - offset))
+            draw_horizon(invert_rotation * (angle - offset['value']))
             sense_buffer.draw()
 
 
