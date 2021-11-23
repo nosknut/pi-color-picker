@@ -1,6 +1,6 @@
 import { Add, ArrowBack, Close, Code, Delete, Download, ExpandLess, ExpandMore, Stop, TableChart } from '@mui/icons-material';
 import { LoadingButton } from '@mui/lab';
-import { Alert, Button, ButtonGroup, Card, CardActionArea, CardActions, CardContent, CardHeader, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Fab, FormControlLabel, Grid, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, ListSubheader, Paper, Radio, RadioGroup, Snackbar, TextField, Toolbar, Typography } from '@mui/material';
+import { Alert, Button, ButtonGroup, Card, CardActionArea, CardActions, CardContent, CardHeader, Checkbox, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Fab, FormControlLabel, Grid, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemSecondaryAction, ListItemText, ListSubheader, Paper, Radio, RadioGroup, Slider, Snackbar, TextField, Toolbar, Typography } from '@mui/material';
 import { Box } from '@mui/system';
 import useLocalStorage from '@rehooks/local-storage';
 import copy from 'clipboard-copy';
@@ -16,6 +16,7 @@ import { RealtimeDataAtom } from '../atoms/RealtimeData';
 import { NumberInput } from '../components/MatrixCard';
 import { useDarkMode } from '../components/Pixel/Themes';
 import { useSocket } from '../hooks/useSocket';
+import { OrientationDisplay } from './OrientationDisplay';
 
 type Device = {
     id: string
@@ -28,7 +29,7 @@ type IdMap<T extends { id: string }> = {
     [id: string]: T
 }
 
-type Orientation = {
+export type Orientation = {
     pitch: number
     roll: number
     yaw: number
@@ -726,11 +727,25 @@ const RealtimeDataBlock = React.memo(({ calibrationEntry, floorHeight }: { calib
     const realtimeData = useRecoilValue(RealtimeDataAtom)
     const height = (calibrationEntry && realtimeData) ? Number(heightFrom(realtimeData, calibrationEntry).toFixed(2)) : null
     const currentFloor = (height !== null) ? (((height < 0) ? -1 : 1) * Math.ceil((Math.abs(height) / floorHeight))) : null
+    const [roll, setroll] = useState(10)
+    const [pitch, setpitch] = useState(10)
+    const [yaw, setyaw] = useState(10)
     return (
         <>
             {realtimeData ? (
                 <>
                     <Box my={4} />
+                    <Slider value={roll} onChange={(e, value) => setroll(value as number)} />
+                    <Slider value={pitch} onChange={(e, value) => setpitch(value as number)} />
+                    <Slider value={yaw} onChange={(e, value) => setyaw(value as number)} />
+                    <OrientationDisplay
+                        // orientation={realtimeData.imu.orientation.degrees} 
+                        // realtimeData.imu.orientation.degrees.
+                        yaw={(realtimeData.imu.orientation.degrees.yaw)}
+                        roll={(realtimeData.imu.orientation.degrees.roll)}
+                        pitch={(realtimeData.imu.orientation.degrees.pitch)}
+                    />
+                    <Box my={2} />
                     <JsonBlock json={JSON.stringify({
                         ...realtimeData,
                         height,
