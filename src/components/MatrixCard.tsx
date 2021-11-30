@@ -1,16 +1,16 @@
-import { Check, Colorize, ContentCopy, Save } from '@mui/icons-material';
+import { Check, Colorize, ContentCopy, ContentPaste, Save } from '@mui/icons-material';
 import { Box, Button, Card, CardActions, CardContent, CardHeader, CircularProgress, FormControlLabel, FormGroup, IconButton, Switch, TextField, Tooltip, useTheme } from '@mui/material';
 import copy from 'clipboard-copy';
 import _ from 'lodash';
 import React, { forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
 import { SketchPicker } from 'react-color';
+
 import { useClearMode } from '../atoms/ClearMode';
 import { usePickColor } from '../atoms/PickColor';
 import { BLACK } from '../constants/Colors';
 import { useImperativeState } from '../hooks/useImperativeState';
 import { Rgb } from '../types/Rgb';
 import { Pixel } from './Pixel/Pixel';
-
 
 export type Matrix<T> = {
     [y: number]: {
@@ -101,6 +101,47 @@ export function pythonFrom(config: MatrixConfig) {
   `.trim()
 }
 
+function pythonArrayToJavascript(pythonArray: string): Array<Rgb> | null {
+    const pixels = pythonArray.match(/(\d+,\s*\d+,\s*\d+)/g)
+    if (!pixels) {
+        return null
+    }
+    return pixels.map((p) => {
+        const [r, g, b] = p.split(', ').map((v) => Number(v))
+        return [r, g, b]
+    })
+}
+
+function compareColors(a: Rgb, b: Rgb) {
+    const [r1, g1, b1] = a
+    const [r2, g2, b2] = b
+    return r1 === r2 && g1 === g2 && b1 === b2
+}
+
+export function fromPython(config: MatrixConfig, pythonArray: string): MatrixConfig | null {
+    const { height, width } = config
+    const array: Array<Rgb> | null = pythonArrayToJavascript(pythonArray)
+    if(!array) {
+        return null
+    }
+    const matrix: Matrix<Rgb> = {}
+        Array.from(Array(height).keys()).forEach((x) => {
+            return Array.from(Array(width).keys()).forEach((y) => {
+                const value = array[y * width + x]
+                if (value && !compareColors(value, BLACK)) {
+                    matrix[y] = matrix[y] || {}
+                    matrix[y][x] = value
+                }
+            })
+        })
+  return {
+      ...config,
+      matrix: {
+          ...matrix,
+      },
+  }
+}
+
 export const MatrixCard = React.memo(forwardRef(({ config, onChange, onDelete, onCopy, selectedColor, emptyColor, copyMode }: MatrixCardProps, ref) => {
     const [state, setState] = useState(config)
     const { height, width, name, matrix } = state
@@ -153,11 +194,37 @@ export const MatrixCard = React.memo(forwardRef(({ config, onChange, onDelete, o
             <CardContent>
                 <Box mb={1}>
                     <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between' }}>
-                        <Tooltip placement="top" title="Copy to clipboard">
+                    <div>
+                    <Tooltip placement="top" title="Copy to clipboard">
                             <IconButton color="primary" className="copy-code" size="small" onClick={() => copy(copyMode === 'json' ? JSON.stringify(config, null, 2) : pythonFrom(config))}>
                                 <ContentCopy />
                             </IconButton>
+                        </Tooltip>                       
+                         <Tooltip placement="top" title="Paste from clipboard">
+                            <IconButton color="primary" className="paste-code" size="small" onClick={async () => 
+                            {
+                                const text = await navigator.clipboard.readText()
+                                if (text) {
+                                    if(copyMode === 'json') {
+                                        const newConfig: Matrix<Rgb> | MatrixConfig = JSON.parse(text)
+                                        if(newConfig) {
+                                            onChange({
+                                                ...config,
+                                                matrix: 'matrix' in newConfig ? newConfig.matrix : newConfig,
+                                            })
+                                        }
+                                    } else if (copyMode === 'python') {
+                                        const newConfig = fromPython(config, text)
+                                        if(newConfig) {
+                                            onChange(newConfig)
+                                        }
+                                    }
+                                }
+                            }}>
+                                <ContentPaste />
+                            </IconButton>
                         </Tooltip>
+                        </div>
                         <Tooltip color="success" placement="top" title={state !== config ? 'Saving ...' : 'Saved'}>
                             <IconButton size="small" className="save-indicator" >
                                 {
