@@ -1,36 +1,36 @@
-import { useEffect, useState } from 'react'
+import { bind } from '@react-rxjs/core';
+import { useCallback } from 'react';
+import { fromEvent, map } from 'rxjs';
+
+const beforeinstallprompt$ = fromEvent(window, 'beforeinstallprompt')
+    .pipe(map((event: any) => ({
+        deferredPrompt: event,
+        isAppInstallable: true,
+    })))
+
+const [useBeforeInstallPrompt] = bind(beforeinstallprompt$, {
+    deferredPrompt: null,
+    isAppInstallable: false,
+})
+
+const isAppInstalled$ = fromEvent(window, 'appinstalled').pipe(map(() => true))
+
+const [useIsAppInstalled] = bind(isAppInstalled$, false)
 
 export function usePwaInstall() {
-    const [state, setState] = useState<{
-        deferredPrompt?: {
-            prompt?(): void
-            userChoice: Promise<{ outcome: 'dismissed' | 'accepted', platform: string }>
-        }
-        isAppInstallable?: boolean
-        isAppInstalled?: boolean
-    }>({})
-
-    useEffect(() => {
-        window.addEventListener('beforeinstallprompt', (e: any) => {
-            // Prevent Chrome 67 and earlier from automatically showing the prompt
-            // e.preventDefault()
-            // Stash the event so it can be triggered later.
-            setState({ deferredPrompt: e, isAppInstallable: true })
-        })
-
-        window.addEventListener('appinstalled', () => {
-            setState({ isAppInstalled: true })
-        })
-    }, [setState])
+    const {
+        deferredPrompt,
+        isAppInstallable,
+    } = useBeforeInstallPrompt()
+    const isAppInstalled = useIsAppInstalled()
 
     return {
-        isAppInstallable: state.isAppInstallable,
-        isAppInstalled: state.isAppInstalled,
-        installApp: () => {
-            if (state.deferredPrompt) {
-                //@ts-ignore
-                state.deferredPrompt?.prompt()
+        isAppInstallable,
+        isAppInstalled,
+        installApp: useCallback(() => {
+            if (deferredPrompt) {
+                deferredPrompt?.prompt()
             }
-        },
+        }, [deferredPrompt]),
     }
 }
