@@ -12,7 +12,7 @@ export function PageNavigation() {
     return (
         <AppBar position="relative">
             <Toolbar>
-                <Avatar src="https://pi-color-picker.web.app/logo.png">
+                <Avatar src="/icons/logo.png">
                     <Palette />
                 </Avatar>
                 <Box mr={1} />
